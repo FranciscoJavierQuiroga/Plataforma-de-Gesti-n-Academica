@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, g, send_file
 from flask_cors import CORS
 from datetime import datetime
 from keycloak import KeycloakOpenID
+import jwt as pyjwt
 from functools import wraps
 import sys
 import os
