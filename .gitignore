@@ -42,6 +42,7 @@ testem.log
 Thumbs.db
 
 /backend/.env
+/backend/.venv
 
 # Jest
 coverage/

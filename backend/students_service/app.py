@@ -1137,7 +1137,7 @@ def get_student_enrollments(student_id):
         # Buscar matrículas activas del estudiante
         enrollments = list(matriculas.find({
             'id_estudiante': obj_id,
-            'estado': 'activo'
+            'estado': 'activa'
         }))
         
         return jsonify({

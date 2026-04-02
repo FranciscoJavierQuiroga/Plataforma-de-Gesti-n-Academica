@@ -14,6 +14,10 @@ from database.db_config import (
     get_usuarios_collection,
     get_cursos_collection,
     get_matriculas_collection,
+    get_auditoria_collection,
+    get_reportes_collection,
+    get_asignaciones_collection,
+    get_groups_collection,
     serialize_doc,
     string_to_objectid,
     registrar_auditoria
@@ -365,12 +369,13 @@ def get_statistics():
         total_cursos = cursos.count_documents({'activo': True})
         
         # Contar matrículas activas
-        total_matriculas = matriculas.count_documents({'estado': 'activo'})
+        total_matriculas = matriculas.count_documents({'estado': 'activa'})
         
         # Estadísticas por periodo
         periodos_stats = []
         for periodo in ['1', '2', '3', '4']:
-            cursos_periodo = cursos.count_documents({'periodo': periodo, 'activo': True})
+            asignaciones= get_asignaciones_collection()
+            cursos_periodo = asignaciones.count_documents({'periodo': periodo, 'activo': True})
             periodos_stats.append({
                 'periodo': periodo,
                 'cursos': cursos_periodo
@@ -553,16 +558,16 @@ def get_dashboard():
         stats = {
             'usuarios_activos': usuarios.count_documents({'activo': True}),
             'cursos_activos': cursos.count_documents({'activo': True}),
-            'matriculas_activas': matriculas.count_documents({'estado': 'activo'}),
+            'matriculas_activas': matriculas.count_documents({'estado': 'activa'}),
             'estudiantes_totales': usuarios.count_documents({'rol': 'estudiante', 'activo': True}),
             'docentes_totales': usuarios.count_documents({'rol': 'docente', 'activo': True})
         }
         
         # Cursos más populares (con más estudiantes)
         pipeline = [
-            {'$match': {'estado': 'activo'}},
+            {'$match': {'estado': 'activa'}},
             {'$group': {
-                '_id': '$id_curso',
+                '_id': '$id_grupo',
                 'total_estudiantes': {'$sum': 1},
                 'curso_info': {'$first': '$curso_info'}
             }},
@@ -715,13 +720,9 @@ def get_all_students_admin():
             query['activo'] = (estado == 'activo')
         
         if grado:
-            # Buscar estudiantes matriculados en ese grado
-            matriculas = get_matriculas_collection()
-            estudiantes_grado = matriculas.distinct('id_estudiante', {
-                'curso_info.grado': grado,
-                'estado': 'activo'
-            })
-            query['_id'] = {'$in': estudiantes_grado}
+            grupos = get_groups_collection()
+            grupos_grado = [g['_id'] for g in grupos.find({'grado': grado, 'activo': True}, {'_id': 1})]
+            query['id_grupo'] = {'$in': grupos_grado}
         
         if search:
             query['$or'] = [
@@ -983,21 +984,25 @@ def create_enrollment_admin():
     """Crear nueva matrícula"""
     try:
         data = request.get_json()
-        
-        required_fields = ['student_id', 'course_id', 'periodo']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({'success': False, 'error': f'Campo {field} requerido'}), 400
+        if not data:
+            return jsonify({'success': False, 'error': 'No se proporcionaron datos'}), 400
+
+        if 'student_id' not in data:
+            return jsonify({'success': False, 'error': 'Campo student_id requerido'}), 400
+
+        # Modelo nuevo: matrícula es por grupo, no por curso.
+        if 'group_id' not in data and 'course_id' not in data:
+            return jsonify({'success': False, 'error': 'Debe enviar group_id o course_id'}), 400
         
         usuarios = get_usuarios_collection()
         cursos = get_cursos_collection()
+        grupos = get_groups_collection()
+        asignaciones = get_asignaciones_collection()
         matriculas = get_matriculas_collection()
         
         # Convertir IDs
         student_obj_id = string_to_objectid(data['student_id'])
-        course_obj_id = string_to_objectid(data['course_id'])
-        
-        if not student_obj_id or not course_obj_id:
+        if not student_obj_id:
             return jsonify({'success': False, 'error': 'IDs inválidos'}), 400
         
         # Verificar estudiante
@@ -1005,35 +1010,61 @@ def create_enrollment_admin():
         if not estudiante:
             return jsonify({'success': False, 'error': 'Estudiante no encontrado'}), 404
         
-        # Verificar curso
-        curso = cursos.find_one({'_id': course_obj_id, 'activo': True})
-        if not curso:
-            return jsonify({'success': False, 'error': 'Curso no encontrado'}), 404
-        
-        # Verificar si ya existe matrícula
-        if matriculas.find_one({'id_estudiante': student_obj_id, 'id_curso': course_obj_id}):
-            return jsonify({'success': False, 'error': 'El estudiante ya está matriculado en este curso'}), 400
+        group_obj_id = string_to_objectid(data.get('group_id')) if data.get('group_id') else None
+        course_obj_id = string_to_objectid(data.get('course_id')) if data.get('course_id') else None
+
+        # Resolver grupo destino
+        if not group_obj_id and course_obj_id:
+            # Intentar deducir grupo desde id_grupo actual del estudiante
+            if estudiante.get('id_grupo'):
+                existe_asignacion = asignaciones.find_one({
+                    'id_curso': course_obj_id,
+                    'id_grupo': estudiante['id_grupo'],
+                    'activo': True
+                })
+                if existe_asignacion:
+                    group_obj_id = estudiante['id_grupo']
+
+            # Fallback: tomar primera asignacion activa del curso
+            if not group_obj_id:
+                primera = asignaciones.find_one({'id_curso': course_obj_id, 'activo': True})
+                if primera:
+                    group_obj_id = primera['id_grupo']
+
+        if not group_obj_id:
+            return jsonify({'success': False, 'error': 'No se pudo resolver el grupo para la matrícula'}), 400
+
+        grupo = grupos.find_one({'_id': group_obj_id, 'activo': True})
+        if not grupo:
+            return jsonify({'success': False, 'error': 'Grupo no encontrado'}), 404
+
+        # Verificar si ya existe matrícula activa del estudiante para este año/grupo
+        anio_lectivo = data.get('anio_lectivo', '2025')
+        if matriculas.find_one({
+            'id_estudiante': student_obj_id,
+            'anio_lectivo': anio_lectivo,
+            'id_grupo': group_obj_id
+        }):
+            return jsonify({'success': False, 'error': 'El estudiante ya está matriculado en este grupo'}), 400
         
         # Crear matrícula
         nueva_matricula = {
             'id_estudiante': student_obj_id,
-            'id_curso': course_obj_id,
+            'id_grupo': group_obj_id,
+            'anio_lectivo': anio_lectivo,
             'fecha_matricula': Timestamp(int(datetime.utcnow().timestamp()), 0),
-            'estado': data.get('estado', 'pendiente'),  # pendiente, aprobado, activo, rechazado, cancelado
-            'periodo': data['periodo'],
+            'estado': data.get('estado', 'activa'),
             'calificaciones': [],
             'estudiante_info': {
                 'nombres': estudiante.get('nombres'),
                 'apellidos': estudiante.get('apellidos'),
                 'codigo_est': estudiante.get('codigo_est')
             },
-            'curso_info': {
-                'nombre_curso': curso.get('nombre_curso'),
-                'codigo_curso': curso.get('codigo_curso'),
-                'grado': curso.get('grado'),
-                'periodo': curso.get('periodo')
+            'grupo_info': {
+                'nombre_grupo': grupo.get('nombre_grupo'),
+                'grado': grupo.get('grado'),
+                'jornada': grupo.get('jornada')
             },
-            'docente_info': curso.get('docente_info', {}),
             'observaciones_admin': data.get('observaciones', '')
         }
         
@@ -1044,7 +1075,7 @@ def create_enrollment_admin():
             accion='crear_matricula_admin',
             entidad_afectada='matriculas',
             id_entidad=str(resultado.inserted_id),
-            detalles=f"Matrícula creada: {estudiante.get('codigo_est')} en {curso.get('codigo_curso')}"
+            detalles=f"Matrícula creada: {estudiante.get('codigo_est')} en grupo {grupo.get('nombre_grupo')}"
         )
         
         return jsonify({
@@ -1068,9 +1099,17 @@ def update_enrollment_status(enrollment_id):
         if 'estado' not in data:
             return jsonify({'success': False, 'error': 'Campo estado requerido'}), 400
         
-        # Estados válidos
-        estados_validos = ['pendiente', 'aprobado', 'activo', 'rechazado', 'cancelado', 'retirado']
-        if data['estado'] not in estados_validos:
+        # Estados válidos según schema actual
+        normalizacion_estados = {
+            'activo': 'activa',
+            'activa': 'activa',
+            'inactivo': 'inactiva',
+            'inactiva': 'inactiva',
+            'retirado': 'retirada',
+            'retirada': 'retirada'
+        }
+        estado_nuevo = normalizacion_estados.get(data['estado'])
+        if not estado_nuevo:
             return jsonify({'success': False, 'error': 'Estado inválido'}), 400
         
         matriculas = get_matriculas_collection()
@@ -1085,7 +1124,7 @@ def update_enrollment_status(enrollment_id):
         
         # Actualizar estado
         actualizacion = {
-            'estado': data['estado'],
+            'estado': estado_nuevo,
             'fecha_actualizacion_estado': Timestamp(int(datetime.utcnow().timestamp()), 0)
         }
         
@@ -1099,12 +1138,12 @@ def update_enrollment_status(enrollment_id):
             accion='cambiar_estado_matricula',
             entidad_afectada='matriculas',
             id_entidad=enrollment_id,
-            detalles=f"Estado cambiado a: {data['estado']}"
+            detalles=f"Estado cambiado a: {estado_nuevo}"
         )
         
         return jsonify({
             'success': True,
-            'message': f"Estado de matrícula actualizado a: {data['estado']}"
+            'message': f"Estado de matrícula actualizado a: {estado_nuevo}"
         }), 200
         
     except Exception as e:
@@ -1186,10 +1225,16 @@ def get_course_detail_admin(course_id):
         if not curso:
             return jsonify({'success': False, 'error': 'Curso no encontrado'}), 404
         
-        # Obtener estudiantes matriculados
-        students_enrolled = list(matriculas.find({
+        # Obtener estudiantes matriculados en grupos donde se dicta este curso
+        asignaciones = get_asignaciones_collection()
+        grupos_ids = asignaciones.distinct('id_grupo', {
             'id_curso': course_obj_id,
-            'estado': 'activo'
+            'activo': True
+        })
+
+        students_enrolled = list(matriculas.find({
+            'id_grupo': {'$in': grupos_ids},
+            'estado': {'$in': ['activa', 'activo']}
         }))
         
         return jsonify({
@@ -1619,17 +1664,25 @@ def report_performance_by_course():
     try:
         matriculas = get_matriculas_collection()
         
-        # Agregación para calcular promedios
+        # Estructura actual: calificaciones[].notas[] por id_asignacion
         pipeline = [
-            {'$match': {'estado': 'activo', 'calificaciones': {'$exists': True, '$ne': []}}},
+            {'$match': {'estado': {'$in': ['activa', 'activo']}, 'calificaciones': {'$exists': True, '$ne': []}}},
             {'$unwind': '$calificaciones'},
+            {'$unwind': '$calificaciones.notas'},
+            {'$lookup': {
+                'from': 'asignaciones_docentes',
+                'localField': 'calificaciones.id_asignacion',
+                'foreignField': '_id',
+                'as': 'asig'
+            }},
+            {'$unwind': '$asig'},
             {'$group': {
                 '_id': {
-                    'curso_id': '$id_curso',
-                    'nombre_curso': '$curso_info.nombre_curso',
-                    'codigo_curso': '$curso_info.codigo_curso'
+                    'curso_id': '$asig.id_curso',
+                    'nombre_curso': '$asig.curso_info.nombre_curso',
+                    'codigo_curso': '$asig.curso_info.codigo_curso'
                 },
-                'promedio': {'$avg': '$calificaciones.nota'},
+                'promedio': {'$avg': '$calificaciones.notas.nota'},
                 'total_calificaciones': {'$sum': 1},
                 'total_estudiantes': {'$addToSet': '$id_estudiante'}
             }},
@@ -1663,36 +1716,33 @@ def report_teacher_workload():
     """Reporte: Carga académica por docente"""
     try:
         cursos = get_cursos_collection()
+        asignaciones = get_asignaciones_collection()
         matriculas = get_matriculas_collection()
-        
-        # Agregación para contar cursos y estudiantes por docente
+
         pipeline_cursos = [
-            {'$match': {'activo': True, 'id_docente': {'$exists': True}}},
+            {'$match': {'activo': True}},
             {'$group': {
                 '_id': '$id_docente',
                 'docente_info': {'$first': '$docente_info'},
                 'total_cursos': {'$sum': 1},
+                'grupos': {'$addToSet': '$id_grupo'},
                 'cursos': {'$push': {
-                    'nombre': '$nombre_curso',
-                    'codigo': '$codigo_curso',
-                    'grado': '$grado'
+                    'nombre': '$curso_info.nombre_curso',
+                    'codigo': '$curso_info.codigo_curso',
+                    'grado': '$grupo_info.grado'
                 }}
             }}
         ]
-        
-        results = list(cursos.aggregate(pipeline_cursos))
-        
-        # Para cada docente, contar estudiantes
+
+        results = list(asignaciones.aggregate(pipeline_cursos))
+
         for docente_data in results:
-            docente_id = docente_data['_id']
-            
-            # Contar estudiantes matriculados en cursos del docente
             total_estudiantes = matriculas.count_documents({
-                'id_curso': {'$in': [c['_id'] for c in cursos.find({'id_docente': docente_id})]},
-                'estado': 'activo'
+                'id_grupo': {'$in': docente_data.get('grupos', [])},
+                'estado': {'$in': ['activa', 'activo']}
             })
-            
             docente_data['total_estudiantes'] = total_estudiantes
+            docente_data.pop('grupos', None)
         
         return jsonify({
             'success': True,
@@ -1807,18 +1857,17 @@ def report_academic_statistics():
                 'inactivos': cursos.count_documents({'activo': False})
             },
             'matriculas': {
-                'activas': matriculas.count_documents({'estado': 'activo'}),
-                'pendientes': matriculas.count_documents({'estado': 'pendiente'}),
-                'rechazadas': matriculas.count_documents({'estado': 'rechazado'}),
-                'retiradas': matriculas.count_documents({'estado': 'retirado'})
+                'activas': matriculas.count_documents({'estado': {'$in': ['activa', 'activo']}}),
+                'inactivas': matriculas.count_documents({'estado': {'$in': ['inactiva', 'inactivo']}}),
+                'retiradas': matriculas.count_documents({'estado': {'$in': ['retirada', 'retirado']}})
             }
         }
         
         # Distribución por grado
         pipeline_grados = [
-            {'$match': {'estado': 'activo'}},
+            {'$match': {'estado': {'$in': ['activa', 'activo']}}},
             {'$group': {
-                '_id': '$curso_info.grado',
+                '_id': '$grupo_info.grado',
                 'total': {'$sum': 1}
             }},
             {'$sort': {'_id': 1}}
@@ -1828,11 +1877,11 @@ def report_academic_statistics():
         
         # Cursos más demandados
         pipeline_cursos = [
-            {'$match': {'estado': 'activo'}},
+            {'$match': {'estado': {'$in': ['activa', 'activo']}}},
             {'$group': {
-                '_id': '$id_curso',
-                'nombre_curso': {'$first': '$curso_info.nombre_curso'},
-                'codigo_curso': {'$first': '$curso_info.codigo_curso'},
+                '_id': '$id_grupo',
+                'nombre_grupo': {'$first': '$grupo_info.nombre_grupo'},
+                'grado': {'$first': '$grupo_info.grado'},
                 'total_estudiantes': {'$sum': 1}
             }},
             {'$sort': {'total_estudiantes': -1}},
@@ -1863,7 +1912,7 @@ def get_all_teachers_admin():
     """Obtener todos los docentes"""
     try:
         usuarios = get_usuarios_collection()
-        cursos = get_cursos_collection()
+        asignaciones = get_asignaciones_collection()
         
         # Filtros
         estado = request.args.get('estado')
@@ -1879,7 +1928,7 @@ def get_all_teachers_admin():
         # Para cada docente, contar cursos asignados
         for teacher in teachers:
             teacher_id = teacher['_id']
-            total_cursos = cursos.count_documents({'id_docente': teacher_id, 'activo': True})
+            total_cursos = asignaciones.count_documents({'id_docente': teacher_id, 'activo': True})
             teacher['total_cursos_asignados'] = total_cursos
         
         return jsonify({
@@ -1910,10 +1959,10 @@ def get_admin_stats():
         total_cursos = cursos.count_documents({'activo': True})
         
         # Contar matrículas activas
-        total_matriculas = matriculas.count_documents({'estado': 'activo'})
+        total_matriculas = matriculas.count_documents({'estado': {'$in': ['activa', 'activo']}})
         
-        # Contar matrículas pendientes
-        matriculas_pendientes = matriculas.count_documents({'estado': 'pendiente'})
+        # En el modelo actual no hay estado pendiente como flujo principal
+        matriculas_pendientes = 0
         
         # ✅ Devolver en el formato que espera el frontend
         return jsonify({

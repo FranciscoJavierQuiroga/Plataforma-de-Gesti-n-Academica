@@ -3,8 +3,8 @@
 echo "🚀 Iniciando servicios backend..."
 
 # Activar entorno virtual si existe
-if [ -d "backend/.env" ]; then
-    source backend/.env/bin/activate
+if [ -d "backend/.venv" ]; then
+    source backend/.venv/bin/activate
 fi
 
 # Iniciar servicios en background

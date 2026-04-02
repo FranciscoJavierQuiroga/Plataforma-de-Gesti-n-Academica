@@ -3,6 +3,7 @@ from flask_cors import CORS
 from datetime import datetime
 from keycloak import KeycloakOpenID
 from functools import wraps
+import jwt as pyjwt
 import sys
 import os
 from bson.timestamp import Timestamp
@@ -15,7 +16,8 @@ from database.db_config import (
     get_groups_collection,
     get_matriculas_collection,
     get_asistencia_collection,
-    get_observaciones_collection, 
+    get_observaciones_collection,
+    get_asignaciones_collection,
     serialize_doc,
     string_to_objectid,
     registrar_auditoria
@@ -578,40 +580,49 @@ def teacher_pending_grades():
         
         print(f"✅ Docente encontrado: {docente.get('nombres')} {docente.get('apellidos')}")
      
-        cursos = get_cursos_collection()
         matriculas = get_matriculas_collection()
-        
-        # Obtener cursos del docente
-        cursos_docente = list(cursos.find({
+        asignaciones = get_asignaciones_collection()
+
+        # Obtener asignaciones del docente (modelo actual)
+        asignaciones_docente = list(asignaciones.find({
             'id_docente': docente['_id'],
-            'activo': True
+            'activo': True,
+            'anio_lectivo': '2025'
         }))
-        
+
         pending_list = []
-        
-        for curso in cursos_docente:
-            # Total de estudiantes en el curso
+
+        for asig in asignaciones_docente:
+            # Total de estudiantes activos del grupo asignado
             total_estudiantes = matriculas.count_documents({
-                'id_curso': curso['_id'],
-                'estado': 'activo'
+                'id_grupo': asig['id_grupo'],
+                'estado': 'activa'
             })
-            
-            # Estudiantes con calificaciones
+
+            # Estudiantes que ya tienen notas para ESTA asignacion
             estudiantes_con_notas = matriculas.count_documents({
-                'id_curso': curso['_id'],
-                'estado': 'activo',
-                'calificaciones': {'$exists': True, '$ne': []}
+                'id_grupo': asig['id_grupo'],
+                'estado': 'activa',
+                'calificaciones': {
+                    '$elemMatch': {
+                        'id_asignacion': asig['_id'],
+                        'notas.0': {'$exists': True}
+                    }
+                }
             })
-            
-            # Estudiantes sin calificaciones
-            pending_count = total_estudiantes - estudiantes_con_notas
-            
+
+            pending_count = max(total_estudiantes - estudiantes_con_notas, 0)
+
             if pending_count > 0:
+                curso_info = asig.get('curso_info', {})
+                grupo_info = asig.get('grupo_info', {})
+
                 pending_list.append({
-                    'course': f"{curso.get('nombre_curso', '')} - {curso.get('grado', '')}°",
+                    'course': f"{curso_info.get('nombre_curso', '')} - {grupo_info.get('nombre_grupo', '')}",
                     'pending': pending_count,
                     'total': total_estudiantes,
-                    'course_id': str(curso['_id'])
+                    'course_id': str(asig.get('id_curso', '')),
+                    'assignment_id': str(asig.get('_id', ''))
                 })
         
         return jsonify({
@@ -760,68 +771,73 @@ def get_course_grades(course_id):
             }), 404
         
         print(f"✅ Docente encontrado: {docente.get('nombres')} {docente.get('apellidos')}")
-        print(f"   ID del docente en BD: {docente['_id']}")
-        print(f"   ID del docente del curso: {curso.get('id_docente')}")
-        
-        # Verificar que el curso pertenece al docente
-        if curso.get('id_docente') != docente['_id']:
-            print(f"❌ El curso no pertenece a este docente")
-            print(f"   Se esperaba: {curso.get('id_docente')}")
-            print(f"   Se recibió: {docente['_id']}")
-            return jsonify({
-                'success': False,
-                'error': 'No tienes permiso para ver este curso'
-            }), 403
-        
-        print(f"✅ Permisos verificados correctamente")
-        
-        # Buscar matrículas del curso
-        enrollments = list(matriculas.find({
+
+        from database.db_config import get_asignaciones_collection
+        asignaciones = get_asignaciones_collection()
+
+        # El curso puede estar en varios grupos; tomar todas las asignaciones del docente
+        asignaciones_docente = list(asignaciones.find({
             'id_curso': curso_obj_id,
-            'estado': 'activo'
+            'id_docente': docente['_id'],
+            'activo': True
         }))
-        
-        print(f"📊 Encontradas {len(enrollments)} matrículas activas")
-        
-        # Formatear datos de estudiantes con calificaciones
+
+        if not asignaciones_docente:
+            return jsonify({'success': False, 'error': 'No tienes permiso para ver este curso'}), 403
+
+        asignacion_por_grupo = {a['id_grupo']: a for a in asignaciones_docente}
+        enrollments = list(matriculas.find({
+            'id_grupo': {'$in': list(asignacion_por_grupo.keys())},
+            'estado': 'activa'
+        }))
+
         students_data = []
         for enrollment in enrollments:
-            student_info = enrollment.get('estudiante_info', {})
-            calificaciones = enrollment.get('calificaciones', [])
-            
-            # Calcular promedio ponderado
+            asig = asignacion_por_grupo.get(enrollment.get('id_grupo'))
+            if not asig:
+                continue
+
+            notas = []
+            for cal in enrollment.get('calificaciones', []):
+                if cal.get('id_asignacion') == asig['_id']:
+                    notas = cal.get('notas', [])
+                    break
+
             promedio = 0
-            if calificaciones:
-                total = sum(c.get('nota', 0) * c.get('peso', 0) for c in calificaciones)
-                total_peso = sum(c.get('peso', 0) for c in calificaciones)
+            if notas:
+                total = sum(n.get('nota', 0) * n.get('peso', 0) for n in notas)
+                total_peso = sum(n.get('peso', 0) for n in notas)
                 promedio = round(total / total_peso, 2) if total_peso > 0 else 0
-            
+
+            student_info = enrollment.get('estudiante_info', {})
             students_data.append({
                 'enrollment_id': str(enrollment['_id']),
                 'student_id': str(enrollment['id_estudiante']),
                 'student_name': f"{student_info.get('nombres', '')} {student_info.get('apellidos', '')}",
                 'student_code': student_info.get('codigo_est', ''),
-                'grades': serialize_doc(calificaciones),
+                'grades': serialize_doc(notas),
                 'average': promedio,
-                'estado': 'Aprobado' if promedio >= 3.0 else 'Reprobado'
+                'estado': 'Aprobado' if promedio >= 3.0 else 'Reprobado',
+                'group_id': str(enrollment.get('id_grupo')) if enrollment.get('id_grupo') else None,
+                'assignment_id': str(asig['_id'])
             })
-        
+
         return jsonify({
             'success': True,
             'course_id': course_id,
             'course_name': curso.get('nombre_curso', ''),
             'course_code': curso.get('codigo_curso', ''),
             'grado': curso.get('grado', ''),
-            'periodo': curso.get('periodo', ''),
             'students': students_data,
             'count': len(students_data)
         }), 200
-        
+            
     except Exception as e:
         print(f"❌ Error en get_course_grades: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500    
+
 @app.route('/teacher/groups/<group_id>/grades', methods=['GET'])
 @token_required('docente')
 def get_group_grades(group_id):
@@ -881,15 +897,21 @@ def get_group_grades(group_id):
         
         # Formatear datos de estudiantes
         students_data = []
+        ids_asignaciones_docente = {a['_id'] for a in asignaciones_grupo}
         for matricula in estudiantes_matriculados:
             student_info = matricula.get('estudiante_info', {})
             calificaciones = matricula.get('calificaciones', [])
+            notas_docente = []
+
+            for item in calificaciones:
+                if item.get('id_asignacion') in ids_asignaciones_docente:
+                    notas_docente.extend(item.get('notas', []))
             
             # Calcular promedio
             promedio = 0
-            if calificaciones:
-                total = sum(c.get('nota', 0) * c.get('peso', 0) for c in calificaciones)
-                total_peso = sum(c.get('peso', 0) for c in calificaciones)
+            if notas_docente:
+                total = sum(c.get('nota', 0) * c.get('peso', 0) for c in notas_docente)
+                total_peso = sum(c.get('peso', 0) for c in notas_docente)
                 promedio = round(total / total_peso, 2) if total_peso > 0 else 0
             
             students_data.append({
@@ -897,7 +919,7 @@ def get_group_grades(group_id):
                 'student_id': str(matricula['id_estudiante']),
                 'student_name': f"{student_info.get('nombres', '')} {student_info.get('apellidos', '')}",
                 'student_code': student_info.get('codigo_est', ''),
-                'grades': serialize_doc(calificaciones),
+                'grades': serialize_doc(notas_docente),
                 'average': promedio,
                 'estado': 'Aprobado' if promedio >= 3.0 else 'Reprobado'
             })
@@ -931,16 +953,17 @@ def get_group_grades(group_id):
 @app.route('/teacher/grades', methods=['POST'])
 @token_required('docente')
 def add_grade():
-    """Agregar una calificación a un estudiante CON PERIODO"""
+    """Agregar una calificación a un estudiante EN ESTRUCTURA ANIDADA POR ASIGNACIÓN"""
     try:
         data = request.get_json()
         
-        required_fields = ['enrollment_id', 'tipo', 'nota', 'peso', 'periodo']  # ✅ AGREGAR periodo
+        # Validar campos requeridos (ahora incluye assignment_id y periodo)
+        required_fields = ['enrollment_id', 'assignment_id', 'periodo', 'tipo', 'nota', 'peso']
         for field in required_fields:
             if field not in data:
                 return jsonify({
                     'success': False,
-                    'error': f'Campo {field} requerido'
+                    'error': f'El campo {field} es requerido'
                 }), 400
         
         # Validar nota
@@ -962,30 +985,54 @@ def add_grade():
         
         matriculas = get_matriculas_collection()
         
+        # Convertir IDs a ObjectId
         enrollment_obj_id = string_to_objectid(data['enrollment_id'])
-        if not enrollment_obj_id:
-            return jsonify({'success': False, 'error': 'ID de matrícula inválido'}), 400
+        assignment_obj_id = string_to_objectid(data['assignment_id'])
         
+        if not enrollment_obj_id or not assignment_obj_id:
+            return jsonify({'success': False, 'error': 'IDs inválidos'}), 400
+        
+        # Verificar que la matrícula existe
         matricula = matriculas.find_one({'_id': enrollment_obj_id})
         if not matricula:
             return jsonify({'success': False, 'error': 'Matrícula no encontrada'}), 404
         
-        # Crear calificación
+        # Crear objeto de calificación (para insertar en notas[])
         nueva_calificacion = {
             'tipo': data['tipo'],
             'nota': nota,
             'nota_maxima': nota_maxima,
             'peso': peso,
-            'periodo': data['periodo'],  # ✅ AGREGAR PERIODO
-            'fecha_eval': Timestamp(int(datetime.utcnow().timestamp()), 0),
+            'fecha_eval': datetime.utcnow(),
             'comentarios': data.get('comentarios', '')
         }
         
-        # Agregar calificación
-        matriculas.update_one(
-            {'_id': enrollment_obj_id},
-            {'$push': {'calificaciones': nueva_calificacion}}
+        periodo_eval = data.get('periodo', '1')
+        
+        # Intentar actualizar calificación existente para esta asignación/periodo
+        resultado = matriculas.update_one(
+            {
+                '_id': enrollment_obj_id,
+                'calificaciones.id_asignacion': assignment_obj_id,
+                'calificaciones.periodo': periodo_eval
+            },
+            {'$push': {'calificaciones.$.notas': nueva_calificacion}}
         )
+        
+        # Si no modificó nada, crear nueva entrada de calificación
+        if resultado.modified_count == 0:
+            matriculas.update_one(
+                {'_id': enrollment_obj_id},
+                {
+                    '$push': {
+                        'calificaciones': {
+                            'id_asignacion': assignment_obj_id,
+                            'periodo': periodo_eval,
+                            'notas': [nueva_calificacion]
+                        }
+                    }
+                }
+            )
         
         # Registrar auditoría
         registrar_auditoria(
@@ -993,9 +1040,10 @@ def add_grade():
             accion='agregar_calificacion',
             entidad_afectada='matriculas',
             id_entidad=data['enrollment_id'],
-            detalles=f"Calificación agregada: {data['tipo']} - Nota: {nota}"
+            detalles=f"Calificación agregada: {data['tipo']} - Nota: {nota} - Asignación: {data['assignment_id']}"
         )
         
+        # Obtener matrícula actualizada
         matricula_actualizada = matriculas.find_one({'_id': enrollment_obj_id})
         
         return jsonify({
@@ -1004,11 +1052,11 @@ def add_grade():
             'enrollment': serialize_doc(matricula_actualizada)
         }), 201
         
-    except ValueError:
+    except ValueError as ve:
         return jsonify({'success': False, 'error': 'Valores numéricos inválidos'}), 400
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
+    
 @app.route('/teacher/grades/<enrollment_id>', methods=['PUT'])
 @token_required('docente')
 def update_grade(enrollment_id):
@@ -1139,14 +1187,41 @@ def bulk_upload_grades():
             return jsonify({'success': False, 'error': 'No se proporcionaron calificaciones'}), 400
         
         course_id = data.get('course_id')
-        tipo_evaluacion = data.get('tipo', 'Evaluación')
+        periodo = data.get('periodo', '1')          # ← NEW: get periodo
+        tipo_evaluacion = data.get('tipo', 'Parcial')
         peso = float(data.get('peso', 0.33))
         
         if not course_id:
             return jsonify({'success': False, 'error': 'Se requiere course_id'}), 400
         
+        # Get teacher's assignment for this group
+        teacher_email = g.userinfo.get('email') or g.userinfo.get('preferred_username')
+        if teacher_email and '@' not in teacher_email:
+            teacher_email = f"{teacher_email}@colegio.edu.co"
+        
+        usuarios = get_usuarios_collection()
+        docente = usuarios.find_one({
+            'correo': teacher_email,
+            'rol': 'docente',
+            'activo': True
+        })
+        
+        if not docente:
+            return jsonify({'success': False, 'error': 'Docente no encontrado'}), 404
+        
+        from database.db_config import get_asignaciones_collection
+        asignaciones_col = get_asignaciones_collection()
+        asignacion = asignaciones_col.find_one({
+            'id_docente': docente['_id'],
+            'id_grupo': string_to_objectid(course_id),
+            'activo': True
+        })
+        
+        if not asignacion:
+            return jsonify({'success': False, 'error': 'No tienes asignación para este grupo'}), 403
+        
+        asignacion_id = asignacion['_id']
         matriculas = get_matriculas_collection()
-        curso_obj_id = string_to_objectid(course_id)
         
         successful = 0
         failed = 0
@@ -1171,20 +1246,44 @@ def bulk_upload_grades():
                     errors.append({'error': 'Matrícula no encontrada', 'enrollment_id': enrollment_id})
                     continue
                 
-                nueva_calificacion = {
-                    'tipo': tipo_evaluacion,
-                    'nota': nota,
-                    'nota_maxima': 5.0,
-                    'peso': peso,
-                    'fecha_eval': datetime.utcnow(),
-                    'comentarios': comentarios
+                nueva_nota = {
+                'tipo': tipo_evaluacion,
+                'nota': nota,
+                'nota_maxima': 5.0,
+                'peso': peso,
+                'fecha_eval': datetime.utcnow(),
+                'comentarios': comentarios
                 }
-                
-                matriculas.update_one(
-                    {'_id': enrollment_obj_id},
-                    {'$push': {'calificaciones': nueva_calificacion}}
-                )
-                
+                grade_index = grade_entry.get('grade_index')
+                if grade_index is not None and grade_index >= 0:
+                    # UPDATE existing grade at index
+                    matriculas.update_one(
+                        {
+                            '_id': enrollment_obj_id,
+                            'calificaciones.id_asignacion': asignacion_id,
+                            'calificaciones.periodo': periodo
+                        },
+                        {
+                            '$set': {
+                                'calificaciones.$.notas.' + str(grade_index): nueva_nota
+                            }
+                        }
+                    )
+                else:
+                    # CREATE new grade
+                    matriculas.update_one(
+                        {
+                            '_id': enrollment_obj_id,
+                            'calificaciones.id_asignacion': asignacion_id,
+                            'calificaciones.periodo': periodo
+                        },
+                        {
+                            '$push': {
+                                'calificaciones.$.notas': nueva_nota
+                            }
+                        }
+                    )
+                    
                 successful += 1
                 
             except Exception as e:
@@ -1342,11 +1441,16 @@ def save_attendance():
         if not curso:
             return jsonify({'success': False, 'error': 'Curso no encontrado'}), 404
         
-        if curso.get('id_docente') != docente['_id']:
-            return jsonify({
-                'success': False,
-                'error': 'No tienes permiso para registrar asistencia en este curso'
-            }), 403
+        from database.db_config import get_asignaciones_collection
+        asignaciones = get_asignaciones_collection()
+        asignacion = asignaciones.find_one({
+            'id_curso': curso_obj_id,
+            'id_docente': docente['_id'],
+            'activo': True
+        })
+        if not asignacion:
+            return jsonify({'success': False, 'error': 'No tienes permiso para registrar asistencia en este curso'}), 403
+
         
         # Convertir fecha
         try:
@@ -1365,9 +1469,9 @@ def save_attendance():
             
             # Buscar información del estudiante desde la matrícula
             matricula = matriculas.find_one({
-                'id_estudiante': estudiante_id,
-                'id_curso': curso_obj_id,
-                'estado': 'activo'
+            'id_estudiante': estudiante_id,
+            'id_grupo': asignacion['id_grupo'],
+            'estado': 'activa'
             })
             
             if matricula:
@@ -1679,14 +1783,22 @@ def create_observation():
         if not estudiante:
             return jsonify({'success': False, 'error': 'Estudiante no encontrado'}), 404
         
-        # Verificar que el curso existe y pertenece al docente
+        # Verificar que el curso existe
         cursos = get_cursos_collection()
         curso = cursos.find_one({'_id': curso_id})
         
         if not curso:
             return jsonify({'success': False, 'error': 'Curso no encontrado'}), 404
         
-        if curso.get('id_docente') != docente['_id']:
+        # Permisos por asignacion docente (modelo actual)
+        from database.db_config import get_asignaciones_collection
+        asignaciones = get_asignaciones_collection()
+        tiene_asignacion = asignaciones.find_one({
+            'id_curso': curso_id,
+            'id_docente': docente['_id'],
+            'activo': True
+        })
+        if not tiene_asignacion:
             return jsonify({
                 'success': False,
                 'error': 'No tienes permiso para registrar observaciones en este curso'

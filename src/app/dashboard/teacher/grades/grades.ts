@@ -25,6 +25,9 @@ interface Estudiante {
   nota2?: number;
   nota3?: number;
   observaciones?: string;
+  nota1_index?: number;
+  nota2_index?: number;
+  nota3_index?: number;
 }
 
 @Component({
@@ -38,12 +41,12 @@ export default class GradesComponent implements OnInit {
   // Datos del curso seleccionado
   cursoSeleccionado: any = null;
   periodoSeleccionado: string = '1';
-  
+
   // Listas
   grupos: any[] = [];
   periodos = ['1', '2', '3', '4'];
   estudiantes: Estudiante[] = [];
-  
+
   // Estados
   loading = false;
   guardando = false;
@@ -57,7 +60,7 @@ export default class GradesComponent implements OnInit {
   constructor(
     private router: Router,
     private api: ApiService
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.cargarGrupos();
@@ -88,18 +91,16 @@ export default class GradesComponent implements OnInit {
 
   cargarCalificaciones() {
     if (!this.cursoSeleccionado) {
-    console.warn('⚠️ No hay curso seleccionado, no se cargan calificaciones');
-    return; // ✅ Esto debe estar
-  }
+      console.warn('⚠️ No hay curso seleccionado, no se cargan calificaciones');
+      return; // ✅ Esto debe estar
+    }
     this.loading = true;
     this.error = null;
 
     this.api.getCourseGrades(this.cursoSeleccionado._id).subscribe({
       next: (res: any) => {
         if (res.success) {
-          // Mapear datos del backend al formato del componente
           this.estudiantes = res.students.map((student: any) => {
-            // Extraer las primeras 3 calificaciones para mostrar
             const grades = student.grades || [];
             return {
               enrollment_id: student.enrollment_id,
@@ -111,6 +112,9 @@ export default class GradesComponent implements OnInit {
               nota1: grades[0]?.nota || 0,
               nota2: grades[1]?.nota || 0,
               nota3: grades[2]?.nota || 0,
+              nota1_index: grades[0] !== undefined ? 0 : -1,
+              nota2_index: grades[1] !== undefined ? 1 : -1,
+              nota3_index: grades[2] !== undefined ? 2 : -1,
               observaciones: grades[grades.length - 1]?.comentarios || ''
             };
           });
@@ -136,11 +140,14 @@ export default class GradesComponent implements OnInit {
   }
 
   guardarCalificaciones() {
-    // Validar notas
-    const notasInvalidas = this.estudiantes.some(est => 
-      (est.nota1 && (est.nota1 < 0 || est.nota1 > 5)) ||
-      (est.nota2 && (est.nota2 < 0 || est.nota2 > 5)) ||
-      (est.nota3 && (est.nota3 < 0 || est.nota3 > 5))
+    const tieneValor = (nota: number | undefined) =>
+      nota !== undefined && nota !== null && !Number.isNaN(nota);
+
+    // Validar notas (incluye 0 como válido)
+    const notasInvalidas = this.estudiantes.some(est =>
+      (tieneValor(est.nota1) && (est.nota1! < 0 || est.nota1! > 5)) ||
+      (tieneValor(est.nota2) && (est.nota2! < 0 || est.nota2! > 5)) ||
+      (tieneValor(est.nota3) && (est.nota3! < 0 || est.nota3! > 5))
     );
 
     if (notasInvalidas) {
@@ -150,35 +157,35 @@ export default class GradesComponent implements OnInit {
 
     this.guardando = true;
     this.calcularPromediosAuto();
-    
-    // Preparar datos para carga masiva
+
     const gradesToUpload = this.estudiantes
-      .filter(est => est.nota1 || est.nota2 || est.nota3) // Solo estudiantes con notas
+      .filter(est => tieneValor(est.nota1) || tieneValor(est.nota2) || tieneValor(est.nota3))
       .flatMap(est => {
-        const grades = [];
-        
-        if (est.nota1 && est.nota1 > 0) {
+        const grades: Array<{ enrollment_id: string; nota: number; comentarios: string; grade_index?: number }> = [];
+        if (tieneValor(est.nota1)) {
           grades.push({
             enrollment_id: est.enrollment_id,
-            nota: est.nota1,
-            comentarios: est.observaciones || ''
+            nota: est.nota1!,
+            comentarios: est.observaciones || '',
+            grade_index: est.nota1_index! >= 0 ? est.nota1_index : undefined
           });
         }
-        if (est.nota2 && est.nota2 > 0) {
+        if (tieneValor(est.nota2)) {
           grades.push({
             enrollment_id: est.enrollment_id,
-            nota: est.nota2,
-            comentarios: est.observaciones || ''
+            nota: est.nota2!,
+            comentarios: est.observaciones || '',
+            grade_index: est.nota2_index! >= 0 ? est.nota2_index : undefined
           });
         }
-        if (est.nota3 && est.nota3 > 0) {
+        if (tieneValor(est.nota3)) {
           grades.push({
             enrollment_id: est.enrollment_id,
-            nota: est.nota3,
-            comentarios: est.observaciones || ''
+            nota: est.nota3!,
+            comentarios: est.observaciones || '',
+            grade_index: est.nota3_index! >= 0 ? est.nota3_index : undefined
           });
         }
-        
         return grades;
       });
 
@@ -188,9 +195,9 @@ export default class GradesComponent implements OnInit {
       return;
     }
 
-    // Enviar carga masiva
     this.api.bulkUploadGrades({
       course_id: this.cursoSeleccionado._id,
+      periodo: this.periodoSeleccionado,
       tipo: this.tipoEvaluacionSeleccionado,
       peso: this.pesoEvaluacion,
       grades: gradesToUpload
@@ -199,7 +206,7 @@ export default class GradesComponent implements OnInit {
         this.guardando = false;
         if (res.success) {
           alert(`Calificaciones guardadas exitosamente.\n\nExitosas: ${res.successful}\nFallidas: ${res.failed}`);
-          this.cargarCalificaciones(); // Recargar datos
+          this.cargarCalificaciones();
         }
       },
       error: (err) => {
