@@ -154,7 +154,7 @@
             <tbody>
               <tr *ngFor="let enrollment of enrollments.slice(0, 5)">
                 <td>{{ enrollment.estudiante_info?.nombres }} {{ enrollment.estudiante_info?.apellidos }}</td>
-                <td>{{ enrollment.curso_info?.nombre_curso }}</td>
+                <td>{{ enrollment.grupo_info?.nombre_grupo }}</td>
                 <td>
                   <span class="badge" [class]="enrollment.estado">
                     {{ enrollment.estado }}

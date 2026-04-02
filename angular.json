@@ -48,6 +48,17 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
+            },
+            "lambda": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.prod.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"
@@ -60,6 +71,9 @@
             },
             "development": {
               "buildTarget": "arquitectura_proyecto:build:development"
+            },
+            "lambda": {
+              "buildTarget": "arquitectura_proyecto:build:lambda"
             }
           },
           "defaultConfiguration": "development"

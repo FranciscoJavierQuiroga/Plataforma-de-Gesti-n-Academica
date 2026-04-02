@@ -87,7 +87,7 @@ export default class AttendanceComponent implements OnInit {
       if (res.success && res.attendance && res.attendance.registros) {
         // Hay asistencia registrada para esta fecha
         this.estudiantes = res.attendance.registros.map((reg: any) => ({
-          id_estudiante: reg.id_estudiante,
+          id_estudiante: String(reg.id_estudiante),
           codigo: reg.estudiante_info?.codigo_est || '',
           nombre: `${reg.estudiante_info?.nombres || ''} ${reg.estudiante_info?.apellidos || ''}`,
           estado: reg.estado,
@@ -155,7 +155,7 @@ export default class AttendanceComponent implements OnInit {
     fecha: this.fechaSeleccionada,
     periodo: this.periodoSeleccionado || this.grupoSeleccionado.periodo,
     registros: this.estudiantes.map(e => ({
-      id_estudiante: e.id_estudiante,
+      id_estudiante: String(e.id_estudiante),
       estado: e.estado,
       observaciones: e.observaciones
     }))

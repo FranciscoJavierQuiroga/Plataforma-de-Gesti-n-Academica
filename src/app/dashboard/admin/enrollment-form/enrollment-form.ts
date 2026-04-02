@@ -25,19 +25,17 @@ export class EnrollmentFormComponent implements OnInit {
   // Datos del formulario
   formData = {
     student_id: '',
-    course_id: '',
+    group_id: '',
     periodo: '1',
-    estado: 'pendiente',
+    estado: 'activa',
     observaciones: ''
   };
 
   periodos = ['1', '2', '3', '4'];
   estados = [
-    { value: 'pendiente', label: 'Pendiente' },
-    { value: 'aprobado', label: 'Aprobado' },
-    { value: 'activo', label: 'Activo' },
-    { value: 'rechazado', label: 'Rechazado' },
-    { value: 'cancelado', label: 'Cancelado' }
+    { value: 'activa', label: 'Activa' },
+    { value: 'inactiva', label: 'Inactiva' },
+    { value: 'retirada', label: 'Retirada' }
   ];
 
   // Búsqueda
@@ -52,7 +50,7 @@ export class EnrollmentFormComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadStudents();
-    this.loadCourses();
+    this.loadGroups();
   }
 
   loadStudents(): void {
@@ -73,17 +71,16 @@ export class EnrollmentFormComponent implements OnInit {
     });
   }
 
-  loadCourses(): void {
-    this.api.getAdminCourses({ estado: 'activo' }).subscribe({
+  loadGroups(): void {
+    this.api.getGroups().subscribe({
       next: (response: any) => {
         if (response.success) {
-          this.courses = response.courses;
-          this.filteredCourses = this.courses;
+          this.courses = response.data || [];
         }
       },
       error: (err) => {
-        console.error('❌ Error cargando cursos:', err);
-        this.error = 'Error al cargar la lista de cursos';
+        console.error('❌ Error cargando grupos:', err);
+        this.error = 'Error al cargar la lista de grupos';
       }
     });
   }
@@ -111,8 +108,7 @@ export class EnrollmentFormComponent implements OnInit {
 
     const search = this.searchCourse.toLowerCase();
     this.filteredCourses = this.courses.filter(course =>
-      course.nombre_curso.toLowerCase().includes(search) ||
-      course.codigo_curso.toLowerCase().includes(search) ||
+      course.nombre_grupo.toLowerCase().includes(search) ||
       course.grado.includes(search)
     );
   }
@@ -128,9 +124,9 @@ export class EnrollmentFormComponent implements OnInit {
   getCourseName(courseId: string): string {
     const course = this.courses.find(c => c._id === courseId);
     if (course) {
-      return `${course.nombre_curso} (${course.codigo_curso}) - Grado ${course.grado}`;
+      return `${course.nombre_grupo} - Grado ${course.grado}`;
     }
-    return 'Seleccione un curso';
+    return 'Seleccione un grupo';
   }
 
   validateForm(): boolean {
@@ -139,8 +135,8 @@ export class EnrollmentFormComponent implements OnInit {
       return false;
     }
 
-    if (!this.formData.course_id) {
-      this.error = 'Por favor seleccione un curso';
+    if (!this.formData.group_id) {
+      this.error = 'Por favor seleccione un grupo';
       return false;
     }
 
@@ -191,9 +187,9 @@ export class EnrollmentFormComponent implements OnInit {
   resetForm(): void {
     this.formData = {
       student_id: '',
-      course_id: '',
+      group_id: '',
       periodo: '1',
-      estado: 'pendiente',
+      estado: 'activa',
       observaciones: ''
     };
     this.searchStudent = '';

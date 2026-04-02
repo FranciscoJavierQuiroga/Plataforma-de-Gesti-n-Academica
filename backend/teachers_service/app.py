@@ -1323,19 +1323,42 @@ def get_attendance_by_course():
                 'error': 'Se requieren course_id y fecha'
             }), 400
         
-        # Convertir IDs
-        curso_obj_id = string_to_objectid(course_id)
-        if not curso_obj_id:
-            return jsonify({'success': False, 'error': 'ID de curso inválido'}), 400
-        
+        grupo_obj_id = string_to_objectid(course_id)
+        if not grupo_obj_id:
+            return jsonify({'success': False, 'error': 'ID de grupo inválido'}), 400
+
         # Convertir fecha string a datetime
         try:
             fecha_obj = datetime.strptime(fecha, '%Y-%m-%d')
         except ValueError:
             return jsonify({'success': False, 'error': 'Formato de fecha inválido'}), 400
-        
+
+        # Get teacher's assignment for this group
+        teacher_email = g.userinfo.get('email') or g.userinfo.get('preferred_username')
+        usuarios = get_usuarios_collection()
+        docente = usuarios.find_one({
+            'correo': teacher_email,
+            'rol': 'docente',
+            'activo': True
+        })
+
+        if not docente:
+            return jsonify({'success': False, 'error': 'Docente no encontrado'}), 404
+
+        from database.db_config import get_asignaciones_collection
+        asignaciones = get_asignaciones_collection()
+        asignacion = asignaciones.find_one({
+            'id_grupo': grupo_obj_id,
+            'id_docente': docente['_id'],
+            'activo': True
+        })
+
+        if not asignacion:
+            return jsonify({'success': False, 'error': 'No tienes asignación para este grupo'}), 403
+
+        curso_obj_id = asignacion['id_curso']
         asistencia = get_asistencia_collection()
-        
+
         # Buscar registro de asistencia
         registro = asistencia.find_one({
             'id_curso': curso_obj_id,
@@ -1429,27 +1452,28 @@ def save_attendance():
         
         print(f"✅ Docente encontrado: {docente.get('nombres')} {docente.get('apellidos')}")
         
-        # Convertir curso_id
-        curso_obj_id = string_to_objectid(data['course_id'])
-        if not curso_obj_id:
-            return jsonify({'success': False, 'error': 'ID de curso inválido'}), 400
-        
-        # Verificar que el curso existe y pertenece al docente
-        cursos = get_cursos_collection()
-        curso = cursos.find_one({'_id': curso_obj_id})
-        
-        if not curso:
-            return jsonify({'success': False, 'error': 'Curso no encontrado'}), 404
-        
+        # Convertir grupo_id (frontend envia group_id como course_id)
+        grupo_obj_id = string_to_objectid(data['course_id'])
+        if not grupo_obj_id:
+            return jsonify({'success': False, 'error': 'ID de grupo inválido'}), 400
+
+        # Resolver curso desde la asignación del docente para este grupo
         from database.db_config import get_asignaciones_collection
         asignaciones = get_asignaciones_collection()
         asignacion = asignaciones.find_one({
-            'id_curso': curso_obj_id,
+            'id_grupo': grupo_obj_id,
             'id_docente': docente['_id'],
             'activo': True
         })
         if not asignacion:
-            return jsonify({'success': False, 'error': 'No tienes permiso para registrar asistencia en este curso'}), 403
+            return jsonify({'success': False, 'error': 'No tienes asignación para este grupo'}), 403
+
+        curso_obj_id = asignacion['id_curso']
+        cursos = get_cursos_collection()
+        curso = cursos.find_one({'_id': curso_obj_id})
+
+        if not curso:
+            return jsonify({'success': False, 'error': 'Curso no encontrado'}), 404
 
         
         # Convertir fecha
@@ -1771,28 +1795,38 @@ def create_observation():
         if not docente:
             return jsonify({'success': False, 'error': 'Docente no encontrado'}), 404
         
-        # Convertir IDs
+        # Convertir IDs (frontend envia group_id como course_id)
         estudiante_id = string_to_objectid(data['student_id'])
-        curso_id = string_to_objectid(data['course_id'])
-        
-        if not estudiante_id or not curso_id:
+        grupo_id = string_to_objectid(data['course_id'])
+
+        if not estudiante_id or not grupo_id:
             return jsonify({'success': False, 'error': 'IDs inválidos'}), 400
-        
+
         # Verificar que el estudiante existe
         estudiante = usuarios.find_one({'_id': estudiante_id, 'rol': 'estudiante'})
         if not estudiante:
             return jsonify({'success': False, 'error': 'Estudiante no encontrado'}), 404
-        
-        # Verificar que el curso existe
-        cursos = get_cursos_collection()
-        curso = cursos.find_one({'_id': curso_id})
-        
-        if not curso:
-            return jsonify({'success': False, 'error': 'Curso no encontrado'}), 404
-        
-        # Permisos por asignacion docente (modelo actual)
+
+        # Resolver curso desde la asignación del docente para este grupo
         from database.db_config import get_asignaciones_collection
         asignaciones = get_asignaciones_collection()
+        asignacion = asignaciones.find_one({
+            'id_grupo': grupo_id,
+            'id_docente': docente['_id'],
+            'activo': True
+        })
+
+        if not asignacion:
+            return jsonify({'success': False, 'error': 'No tienes asignación para este grupo'}), 403
+
+        curso_id = asignacion['id_curso']
+        cursos = get_cursos_collection()
+        curso = cursos.find_one({'_id': curso_id})
+
+        if not curso:
+            return jsonify({'success': False, 'error': 'Curso no encontrado'}), 404
+
+        # Permisos por asignacion docente (modelo actual)
         tiene_asignacion = asignaciones.find_one({
             'id_curso': curso_id,
             'id_docente': docente['_id'],
@@ -1821,9 +1855,9 @@ def create_observation():
             'fecha': datetime.utcnow(),
             'seguimiento': data.get('seguimiento', ''),
             'categoria': data.get('categoria', 'otra'),
-            'gravedad': data.get('gravedad', 'leve') if tipo == 'negativa' else None,
+            'gravedad': data.get('gravedad', 'leve') if tipo == 'negativa' else 'leve',
             'notificado_acudiente': data.get('notificado_acudiente', False),
-            'fecha_notificacion': datetime.utcnow() if data.get('notificado_acudiente') else None,
+            'fecha_notificacion': datetime.utcnow() if data.get('notificado_acudiente') else datetime.utcnow(),
             'estudiante_info': {
                 'nombres': estudiante.get('nombres', ''),
                 'apellidos': estudiante.get('apellidos', ''),

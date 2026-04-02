@@ -5,7 +5,7 @@
         "profile_name": "default",
         "project_name": "teachers-service",
         "runtime": "python3.11",
-        "s3_bucket": "zappa-teachers-service-deployments",
+        "s3_bucket": "zappa-teachers-471112562763",
         "manage_roles": true,
         "environment_variables": {
             "ENVIRONMENT": "development",
@@ -15,7 +15,8 @@
         "api_key_required": false,
         "memory_size": 256,
         "timeout_seconds": 30,
-        "keep_warm": false
+        "keep_warm": false,
+        "requirements_filename": "requirements.txt"
     },
     "production": {
         "app_function": "app.app",

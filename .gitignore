@@ -42,8 +42,28 @@ testem.log
 Thumbs.db
 
 /backend/.env
-/backend/.venv
+/backend/.venv/*
+.venv_311/*
 
 # Jest
 coverage/
 .jest-cache/
+
+# Python virtual environments
+.venv/
+.venv_*/
+venv/
+# Python cache and build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+# Zappa build artifacts
+*.zip
+!*.zip  # If you need to commit specific zips
+# Copied backend modules (source is in /backend/database/)
+/backend/*/database/
+# Build outputs and local testing
+dist/
+build/

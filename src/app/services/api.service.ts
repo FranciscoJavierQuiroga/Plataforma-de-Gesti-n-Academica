@@ -489,7 +489,7 @@ export class ApiService {
     salon?: string;
     anio_lectivo?: string;
   }): Observable<any> {
-    return this.http.post(`${environment.api.admin}/admin/courses`, data);
+    return this.http.post(`${environment.api.admin}/admin/assignments`, data);
   }
 
   /**

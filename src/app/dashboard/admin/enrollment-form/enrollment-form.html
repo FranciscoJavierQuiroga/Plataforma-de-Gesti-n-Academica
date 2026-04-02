@@ -6,7 +6,7 @@
     </button>
     <div>
       <h1>Nueva Matrícula</h1>
-      <p class="subtitle">Matricular estudiante en un curso</p>
+      <p class="subtitle">Matricular estudiante en un grupo</p>
     </div>
   </header>
 
@@ -82,20 +82,20 @@
       </div>
 
       <div class="form-group">
-        <label for="course_id">Curso Seleccionado *</label>
+        <label for="group_id">Grupo Seleccionado *</label>
         <select 
-          id="course_id" 
-          [(ngModel)]="formData.course_id" 
-          name="course_id"
+          id="group_id" 
+          [(ngModel)]="formData.group_id" 
+          name="group_id"
           required
         >
-          <option value="">-- Seleccione un curso --</option>
+          <option value="">-- Seleccione un grupo --</option>
           <option *ngFor="let course of filteredCourses" [value]="course._id">
-            {{ course.codigo_curso }} - {{ course.nombre_curso }} (Grado {{ course.grado }})
+            {{ course.nombre_grupo }} - Grado {{ course.grado }}
           </option>
         </select>
-        <p class="form-hint" *ngIf="formData.course_id">
-          Curso: {{ getCourseName(formData.course_id) }}
+        <p class="form-hint" *ngIf="formData.group_id">
+          Grupo: {{ getCourseName(formData.group_id) }}
         </p>
       </div>
     </div>

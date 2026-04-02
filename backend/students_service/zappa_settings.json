@@ -4,7 +4,7 @@
         "aws_region": "us-east-1",
         "profile_name": "default",
         "project_name": "students-service",
-        "runtime": "python3.9",
+        "runtime": "python3.11",
         "s3_bucket": "zappa-students-service-deployments",
         "manage_roles": true,
         "environment_variables": {
@@ -15,7 +15,8 @@
         "api_key_required": false,
         "memory_size": 256,
         "timeout_seconds": 30,
-        "keep_warm": false
+        "keep_warm": false,
+        "requirements_filename": "requirements.txt"
     },
     "production": {
         "app_function": "app.app",

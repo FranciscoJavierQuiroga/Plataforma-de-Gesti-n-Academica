@@ -7,6 +7,9 @@ import { ApiService } from '../../../services/api.service';
 interface Observacion {
   _id: string;
   fecha: string;
+  id_estudiante?: string;
+  id_curso?: string;
+  id_docente?: string;
   estudiante_info: {
     nombres: string;
     apellidos: string;
@@ -226,8 +229,8 @@ onGrupoChangeModal() {
   editar(obs: Observacion) {
     this.editandoId = obs._id;
     this.nuevaObs = {
-      student_id: '',
-      course_id: '',
+      student_id: obs.id_estudiante || '',
+      course_id: obs.id_curso || '',
       tipo: obs.tipo,
       categoria: obs.categoria,
       descripcion: obs.descripcion,
@@ -239,7 +242,7 @@ onGrupoChangeModal() {
   }
 
   guardarObservacion() {
-    if (!this.nuevaObs.descripcion || !this.nuevaObs.student_id || !this.nuevaObs.course_id) {
+    if (!this.nuevaObs.descripcion || (!this.editandoId && (!this.nuevaObs.student_id || !this.nuevaObs.course_id))) {
       this.error = 'Completa todos los campos obligatorios';
       return;
     }
