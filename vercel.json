@@ -1,0 +1,5 @@
+{
+  "buildCommand": "npm run build:lambda",
+  "outputDirectory": "dist/arquitectura_proyecto",
+  "installCommand": "npm ci"
+}

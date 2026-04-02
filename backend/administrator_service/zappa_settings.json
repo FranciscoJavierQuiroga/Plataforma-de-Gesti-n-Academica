@@ -1,0 +1,11 @@
+{
+  "dev": {
+    "app_function": "app.app",
+    "aws_region": "us-east-1",
+    "profile_name": "default",
+    "project_name": "administrator-service",
+    "runtime": "python3.11",
+    "s3_bucket": "zappa-administrator-service-deployments",
+    "requirements_filename": "requirements.txt"
+  }
+}

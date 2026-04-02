@@ -1,0 +1,25 @@
+# Node modules
+node_modules/
+
+# Build output
+dist/
+out-tsc/
+.angular/
+
+# Backend
+backend/
+
+# Coverage
+coverage/
+
+# Environment files
+*.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*

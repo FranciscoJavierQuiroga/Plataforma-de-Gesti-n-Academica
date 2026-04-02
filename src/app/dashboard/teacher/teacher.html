@@ -1,0 +1,123 @@
+<div class="teacher-root">
+  <header class="page-header">
+    <div class="header-content">
+      <div class="header-left">
+        <h1>Panel Docente</h1>
+        <p class="hint">Bienvenido {{ getTeacherName() }}</p>
+        <p class="specialty" *ngIf="overview">{{ overview.especialidad }}</p>
+      </div>
+      <button class="btn-logout" (click)="logout()">
+        <span class="material-icons">logout</span>
+        Cerrar Sesión
+      </button>
+    </div>
+  </header>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Cargando información...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error && !loading" class="error-container">
+    <span class="material-icons">error</span>
+    <p>{{ error }}</p>
+    <button class="btn-primary" (click)="loadAll()">Reintentar</button>
+  </div>
+
+  <!-- Content -->
+  <div *ngIf="!loading && !error">
+    <!-- Stats Cards -->
+    <div class="stats-grid" *ngIf="overview">
+      <div class="stat-card">
+        <div class="stat-icon blue">
+          <span class="material-icons">groups</span>
+        </div>
+        <div class="stat-info">
+          <h3>{{ overview.groups_count }}</h3>
+          <p>Grupos Asignados</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon green">
+          <span class="material-icons">school</span>
+        </div>
+        <div class="stat-info">
+          <h3>{{ overview.total_students }}</h3>
+          <p>Total Estudiantes</p>
+        </div>
+      </div>
+
+      <div class="stat-card" [class.warning]="overview.pending_grades > 0">
+        <div class="stat-icon orange">
+          <span class="material-icons">assignment</span>
+        </div>
+        <div class="stat-info">
+          <h3>{{ overview.pending_grades }}</h3>
+          <p>Calificaciones Pendientes</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Groups Section -->
+    <section class="card groups-card">
+      <div class="card-header">
+        <h2>Mis Grupos</h2>
+        <span class="badge">{{ groups.length }} grupos</span>
+      </div>
+
+      <div class="groups-list" *ngIf="groups.length > 0">
+        <div *ngFor="let g of groups" class="group-item">
+          <div class="group-info">
+            <div class="group-name">{{ g.name }}</div>
+            <div class="group-meta">
+              <span class="material-icons">people</span>
+              {{ g.students }} estudiantes
+            </div>
+          </div>
+          <div class="group-progress">
+            <div class="progress-bar">
+              <div class="progress-fill" [style.width.%]="g.progress_pct"></div>
+            </div>
+            <span class="progress-text">{{ g.progress_pct }}% completado</span>
+          </div>
+          <div class="group-actions">
+            <a class="btn-primary" [routerLink]="['/dashboard/teacher/group', g._id]">
+              Ver Grupo
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="groups.length === 0" class="empty-state">
+        <span class="material-icons">folder_open</span>
+        <h3>No tienes grupos asignados</h3>
+        <p>Contacta al administrador para que te asigne grupos</p>
+      </div>
+    </section>
+
+    <!-- Quick Actions -->
+    <section class="quick-actions">
+      <h2>Acciones Rápidas</h2>
+      <div class="actions-grid">
+        <a class="action-tile" routerLink="/dashboard/teacher/grades">
+          <div class="icon">📝</div>
+          <div class="label">Calificaciones</div>
+          <div class="sub">Registrar notas</div>
+        </a>
+        <a class="action-tile" routerLink="/dashboard/teacher/attendance">
+          <div class="icon">🗓️</div>
+          <div class="label">Asistencia</div>
+          <div class="sub">Control de asistencia</div>
+        </a>
+        <a class="action-tile" routerLink="/dashboard/teacher/observations">
+          <div class="icon">📝</div>
+          <div class="label">Observaciones</div>
+          <div class="sub">Registro disciplinario</div>
+        </a>
+      </div>
+    </section>
+  </div>
+</div>

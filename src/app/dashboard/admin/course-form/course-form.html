@@ -1,0 +1,208 @@
+<div class="course-form-container">
+  <div class="form-header">
+    <button class="btn-back" (click)="goBack()">
+      <span class="material-icons">arrow_back</span>
+      Volver
+    </button>
+    <h1>{{ isEdit ? 'Editar Asignación' : 'Nueva Asignación Docente' }}</h1>
+  </div>
+
+  <form class="course-form" (ngSubmit)="onSubmit()">
+    
+    <!-- SECCIÓN: Información Básica -->
+    <div class="form-section">
+      <h2 class="section-title">
+        <span class="material-icons">info</span>
+        Información de la Asignación
+      </h2>
+
+      <!-- Grupo -->
+      <div class="form-group">
+        <label for="group_id">Grupo *</label>
+        <select 
+          id="group_id" 
+          [(ngModel)]="formData.group_id" 
+          name="group_id" 
+          (change)="onGrupoChange()"
+          required
+          [disabled]="loadingGroups"
+        >
+          <option value="">Seleccione un grupo</option>
+          <option *ngFor="let grupo of grupos" [value]="grupo._id">
+            {{ grupo.nombre_grupo }} - {{ grupo.grado }}° ({{ grupo.jornada }})
+          </option>
+        </select>
+        <p class="form-hint" *ngIf="loadingGroups">
+          <span class="material-icons spinner">sync</span>
+          Cargando grupos...
+        </p>
+      </div>
+
+      <!-- Asignatura y Período -->
+      <div class="form-row">
+        <div class="form-group">
+          <label for="course_id">Asignatura *</label>
+          <select 
+            id="course_id" 
+            [(ngModel)]="formData.course_id" 
+            name="course_id"
+            required
+            [disabled]="loadingCourses"
+          >
+            <option value="">Seleccione una asignatura</option>
+            <option *ngFor="let curso of cursos" [value]="curso._id">
+              {{ curso.nombre_curso }} ({{ curso.intensidad_horaria_semanal }}h/semana)
+            </option>
+          </select>
+          <p class="form-hint" *ngIf="loadingCourses">
+            Cargando asignaturas...
+          </p>
+        </div>
+
+        <div class="form-group">
+          <label for="periodo">Período *</label>
+          <select id="periodo" [(ngModel)]="formData.periodo" name="periodo" required>
+            <option value="">Seleccione</option>
+            <option value="1">Período 1</option>
+            <option value="2">Período 2</option>
+            <option value="3">Período 3</option>
+            <option value="4">Período 4</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Docente y Salón -->
+      <div class="form-row">
+        <div class="form-group">
+          <label for="teacher_id">Docente *</label>
+          <select 
+            id="teacher_id" 
+            [(ngModel)]="formData.teacher_id" 
+            name="teacher_id"
+            required
+            [disabled]="loadingTeachers"
+          >
+            <option value="">Seleccione un docente</option>
+            <option *ngFor="let teacher of teachers" [value]="teacher._id">
+              {{ teacher.nombres }} {{ teacher.apellidos }} - {{ teacher.especialidad }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="salon">Salón</label>
+          <input 
+            type="text" 
+            id="salon" 
+            [(ngModel)]="formData.salon" 
+            name="salon"
+            placeholder="Ej: Aula 201"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN: Horario del Grupo -->
+    <div class="form-section" *ngIf="formData.group_id && horarioGrupo.length > 0">
+      <h2 class="section-title">
+        <span class="material-icons">schedule</span>
+        Horario Actual del Grupo
+      </h2>
+
+      <div class="schedule-info-box">
+        <p class="info-text">
+          <span class="material-icons">info</span>
+          Bloques <strong class="text-occupied">ocupados</strong> tienen asignación docente.
+          Bloques <strong class="text-available">libres</strong> están disponibles.
+        </p>
+      </div>
+
+      <!-- Tabla de horario -->
+      <div class="schedule-grid">
+        <table class="schedule-table">
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th *ngFor="let dia of diasSemana">{{ dia | titlecase }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <ng-container *ngFor="let hora of getUniqueHours()">
+              <tr>
+                <td class="hour-cell">{{ hora }}</td>
+                <td 
+                  *ngFor="let dia of diasSemana"
+                  [class.occupied]="getBlockForTime(dia, hora)?.tipo === 'clase'"
+                  [class.available]="getBlockForTime(dia, hora)?.tipo === 'libre'"
+                  [class.break]="getBlockForTime(dia, hora)?.tipo === 'descanso'"
+                >
+                  <div class="cell-content">
+                    {{ getBlockDisplay(dia, hora) }}
+                  </div>
+                </td>
+              </tr>
+            </ng-container>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Bloques disponibles -->
+      <div class="available-blocks" *ngIf="bloquesDisponibles.length > 0">
+        <h3>
+          <span class="material-icons">check_circle</span>
+          Bloques Disponibles ({{ bloquesDisponibles.length }})
+        </h3>
+        <div class="blocks-list">
+          <span 
+            *ngFor="let bloque of bloquesDisponibles.slice(0, 10)" 
+            class="block-badge"
+          >
+            {{ bloque.dia | titlecase }} {{ bloque.hora_inicio }}-{{ bloque.hora_fin }}
+          </span>
+          <span *ngIf="bloquesDisponibles.length > 10" class="more-blocks">
+            +{{ bloquesDisponibles.length - 10 }} más
+          </span>
+        </div>
+      </div>
+
+      <div class="warning-box" *ngIf="bloquesDisponibles.length === 0">
+        <span class="material-icons">warning</span>
+        <p>
+          <strong>Advertencia:</strong> No hay bloques disponibles en el horario.
+          Verifica si necesitas modificar el horario del grupo.
+        </p>
+      </div>
+    </div>
+
+    <!-- Mensaje si no hay grupo -->
+    <div class="info-box" *ngIf="!formData.group_id">
+      <span class="material-icons">info</span>
+      <p>Seleccione un grupo para ver su horario actual</p>
+    </div>
+
+    <!-- Errores -->
+    <div class="alert alert-error" *ngIf="error">
+      <span class="material-icons">error</span>
+      {{ error }}
+    </div>
+
+    <!-- Acciones -->
+    <div class="form-actions">
+      <button type="button" class="btn btn-outline" (click)="resetForm()" [disabled]="loading">
+        <span class="material-icons">restart_alt</span>
+        Limpiar
+      </button>
+      
+      <button type="button" class="btn btn-secondary" (click)="goBack()" [disabled]="loading">
+        <span class="material-icons">cancel</span>
+        Cancelar
+      </button>
+      
+      <button type="submit" class="btn btn-primary" [disabled]="loading">
+        <span class="material-icons" *ngIf="!loading">save</span>
+        <span class="material-icons spinner" *ngIf="loading">sync</span>
+        {{ loading ? 'Guardando...' : (isEdit ? 'Actualizar' : 'Crear Asignación') }}
+      </button>
+    </div>
+  </form>
+</div>

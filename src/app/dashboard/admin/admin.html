@@ -1,0 +1,489 @@
+<div class="admin-dashboard">
+  <!-- Header -->
+  <header class="dashboard-header">
+    <div class="header-content">
+      <div class="header-left">
+        <h1>Panel de Administración</h1>
+        <div class="user-info">
+          <span class="material-icons">admin_panel_settings</span>
+          <span>{{ adminName }}</span>
+        </div>
+      </div>
+      <button class="btn-logout" (click)="logout()">
+        <span class="material-icons">logout</span>
+        Cerrar Sesión
+      </button>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="admin-nav">
+    <button (click)="changeView('dashboard')" [class.active]="activeView === 'dashboard'">
+      <span class="material-icons">dashboard</span>
+      Dashboard
+    </button>
+    <button (click)="changeView('students')" [class.active]="activeView === 'students'">
+      <span class="material-icons">school</span>
+      Estudiantes
+    </button>
+    <button (click)="changeView('courses')" [class.active]="activeView === 'courses'">
+      <span class="material-icons">class</span>
+      Cursos
+    </button>
+    <button routerLink="/dashboard/admin/groups">
+      <span class="material-icons">groups</span>
+      Grupos
+    </button>
+    <button (click)="changeView('enrollments')" [class.active]="activeView === 'enrollments'">
+      <span class="material-icons">library_books</span>
+      Matrículas
+    </button>
+    <button (click)="changeView('reports')" [class.active]="activeView === 'reports'">
+      <span class="material-icons">assessment</span>
+      Reportes
+    </button>
+  </nav>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Cargando datos...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error && !loading" class="error-container">
+    <span class="material-icons">error_outline</span>
+    <p>{{ error }}</p>
+    <button (click)="loadDashboardData()">Reintentar</button>
+  </div>
+
+  <!-- Content Area -->
+  <div *ngIf="!loading && !error" class="content-area">
+
+    <!-- DASHBOARD VIEW -->
+    <div *ngIf="activeView === 'dashboard'">
+      <!-- Statistics Grid -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon blue">
+            <span class="material-icons">school</span>
+          </div>
+          <div class="stat-info">
+            <h3>{{ stats.totalStudents }}</h3>
+            <p>Estudiantes Activos</p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon green">
+            <span class="material-icons">class</span>
+          </div>
+          <div class="stat-info">
+            <h3>{{ stats.totalCourses }}</h3>
+            <p>Cursos Disponibles</p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon purple">
+            <span class="material-icons">person</span>
+          </div>
+          <div class="stat-info">
+            <h3>{{ stats.totalTeachers }}</h3>
+            <p>Docentes</p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon orange">
+            <span class="material-icons">library_books</span>
+          </div>
+          <div class="stat-info">
+            <h3>{{ stats.totalEnrollments }}</h3>
+            <p>Matrículas Activas</p>
+          </div>
+        </div>
+
+        <div class="stat-card warning" *ngIf="stats.pendingEnrollments > 0">
+          <div class="stat-icon yellow">
+            <span class="material-icons">pending_actions</span>
+          </div>
+          <div class="stat-info">
+            <h3>{{ stats.pendingEnrollments }}</h3>
+            <p>Matrículas Pendientes</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Activity -->
+      <div class="recent-activity">
+        <div class="activity-section">
+          <h2>Últimos Estudiantes Registrados</h2>
+          <table class="data-table" *ngIf="students.length > 0">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Nombre</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let student of students.slice(0, 5)">
+                <td>{{ student.codigo_est }}</td>
+                <td>{{ student.nombres }} {{ student.apellidos }}</td>
+                <td>
+                  <span class="badge active" *ngIf="student.activo">Activo</span>
+                  <span class="badge inactive" *ngIf="!student.activo">Inactivo</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p *ngIf="students.length === 0" class="text-muted">No hay estudiantes registrados</p>
+        </div>
+
+        <div class="activity-section">
+          <h2>Últimas Matrículas</h2>
+          <table class="data-table" *ngIf="enrollments.length > 0">
+            <thead>
+              <tr>
+                <th>Estudiante</th>
+                <th>Curso</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let enrollment of enrollments.slice(0, 5)">
+                <td>{{ enrollment.estudiante_info?.nombres }} {{ enrollment.estudiante_info?.apellidos }}</td>
+                <td>{{ enrollment.grupo_info?.nombre_grupo }}</td>
+                <td>
+                  <span class="badge" [class]="enrollment.estado">
+                    {{ enrollment.estado }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p *ngIf="enrollments.length === 0" class="text-muted">No hay matrículas registradas</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- STUDENTS VIEW -->
+    <div *ngIf="activeView === 'students'" class="students-view">
+      <div class="view-header">
+        <h2>Gestión de Estudiantes</h2>
+        <button class="btn-primary" routerLink="/dashboard/admin/students/new">
+          <span class="material-icons">add</span>
+          Nuevo Estudiante
+        </button>
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Nombre Completo</th>
+            <th>Documento</th>
+            <th>Correo</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let student of students">
+            <td>{{ student.codigo_est }}</td>
+            <td>{{ student.nombres }} {{ student.apellidos }}</td>
+            <td>{{ student.documento }}</td>
+            <td>{{ student.correo }}</td>
+            <td>
+              <span class="badge" [class.active]="student.activo" [class.inactive]="!student.activo">
+                {{ student.activo ? 'Activo' : 'Inactivo' }}
+              </span>
+            </td>
+            <td class="actions">
+              <button class="btn-icon" title="Editar" [routerLink]="['/dashboard/admin/students', student._id, 'edit']">
+                <span class="material-icons">edit</span>
+              </button>
+              <button class="btn-icon danger" title="Eliminar" (click)="deleteStudent(student._id)">
+                <span class="material-icons">delete</span>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- COURSES VIEW -->
+    <div *ngIf="activeView === 'courses'" class="courses-view">
+      <div class="view-header">
+        <h2>Gestión de Cursos</h2>
+        <button class="btn-primary" routerLink="/dashboard/admin/courses/new">
+          <span class="material-icons">add</span>
+          Nuevo Curso
+        </button>
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Nombre del Curso</th>
+            <th>Grado</th>
+            <th>Periodo</th>
+            <th>Docente</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let course of courses">
+            <td>{{ course.codigo_curso }}</td>
+            <td>{{ course.nombre_curso }}</td>
+            <td>{{ course.grado }}</td>
+            <td>Periodo {{ course.periodo }}</td>
+            <td>
+              <span *ngIf="course.docente_info">
+                {{ course.docente_info.nombres }} {{ course.docente_info.apellidos }}
+              </span>
+              <span *ngIf="!course.docente_info" class="text-muted">Sin asignar</span>
+            </td>
+            <td>
+              <span class="badge" [class.active]="course.activo" [class.inactive]="!course.activo">
+                {{ course.activo ? 'Activo' : 'Inactivo' }}
+              </span>
+            </td>
+            <td class="actions">
+              <button class="btn-icon" title="Editar" [routerLink]="['/dashboard/admin/courses', course._id, 'edit']">
+                <span class="material-icons">edit</span>
+              </button>
+              <button class="btn-icon danger" title="Eliminar" (click)="deleteCourse(course._id)">
+                <span class="material-icons">delete</span>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ENROLLMENTS VIEW -->
+    <div *ngIf="activeView === 'enrollments'" class="enrollments-view">
+      <div class="view-header">
+        <h2>Gestión de Matrículas</h2>
+        <button class="btn-primary" routerLink="/dashboard/admin/enrollments/new">
+          <span class="material-icons">add</span>
+          Nueva Matrícula
+        </button>
+      </div>
+
+      <!-- Filtros -->
+      <div class="filters-bar">
+        <select [(ngModel)]="enrollmentFilters.estado" (change)="loadEnrollments()">
+          <option value="">Todos los estados</option>
+          <option value="activa">Activas</option>
+          <option value="pendiente">Pendientes</option>
+          <option value="retirado">Retiradas</option>
+        </select>
+
+        <select [(ngModel)]="enrollmentFilters.grado" (change)="loadEnrollments()">
+          <option value="">Todos los grados</option>
+          <option value="6">Grado 6</option>
+          <option value="7">Grado 7</option>
+          <option value="8">Grado 8</option>
+          <option value="9">Grado 9</option>
+          <option value="10">Grado 10</option>
+          <option value="11">Grado 11</option>
+        </select>
+
+        <span class="results-count">
+          <span class="material-icons">filter_list</span>
+          {{ enrollments.length }} resultados
+        </span>
+      </div>
+
+      <!-- Tabla de Matrículas -->
+      <table class="data-table" *ngIf="enrollments.length > 0">
+        <thead>
+          <tr>
+            <th>Estudiante</th>
+            <th>Código</th>
+            <th>Grupo</th>
+            <th>Grado</th>
+            <th>Año Lectivo</th>
+            <th>Fecha Matrícula</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let enrollment of enrollments">
+            <td>
+              <strong>{{ enrollment.estudiante_info?.nombres }} {{ enrollment.estudiante_info?.apellidos }}</strong>
+              <br>
+              <small class="text-muted">{{ enrollment.estudiante_info?.documento }}</small>
+            </td>
+            <td>{{ enrollment.estudiante_info?.codigo_est }}</td>
+            <td>
+              <span class="badge badge-info">
+                {{ enrollment.grupo_info?.nombre_grupo }}
+              </span>
+            </td>
+            <td>{{ enrollment.grupo_info?.grado }}°</td>
+            <td>{{ enrollment.anio_lectivo }}</td>
+            <td>{{ formatDate(enrollment.fecha_matricula) }}</td>
+            <td>
+              <span class="badge" [class.badge-success]="enrollment.estado === 'activa'"
+                [class.badge-warning]="enrollment.estado === 'pendiente'"
+                [class.badge-danger]="enrollment.estado === 'retirado'">
+                {{ enrollment.estado | titlecase }}
+              </span>
+            </td>
+            <td>
+              <button class="btn-icon" title="Ver detalles">
+                <span class="material-icons">visibility</span>
+              </button>
+              <button class="btn-icon" title="Editar" *ngIf="enrollment.estado !== 'retirado'">
+                <span class="material-icons">edit</span>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+
+      <!-- Empty State -->
+      <div *ngIf="enrollments.length === 0" class="empty-state">
+        <span class="material-icons">folder_open</span>
+        <h3>No hay matrículas registradas</h3>
+        <p>Comienza creando una nueva matrícula</p>
+        <button class="btn-primary" routerLink="/dashboard/admin/enrollments/new">
+          <span class="material-icons">add</span>
+          Nueva Matrícula
+        </button>
+      </div>
+    </div>
+    <!-- REPORTS VIEW -->
+    <div *ngIf="activeView === 'reports'" class="reports-view">
+      <div class="view-header">
+        <h2>📊 Reportes y Estadísticas</h2>
+        <p class="subtitle">Visualización de datos académicos del sistema</p>
+      </div>
+
+      <!-- Selector de Reportes -->
+      <div class="reports-selector">
+        <!-- ✅ REPORTE: Estudiantes por Grado -->
+        <button class="report-card" [class.active]="selectedReport === 'students-by-grade'"
+          (click)="generateReport('students-by-grade')">
+          <span class="material-icons">bar_chart</span>
+          <h3>Estudiantes por Grado</h3>
+          <p>Distribución de estudiantes matriculados en cada grado académico</p>
+        </button>
+
+        <!-- ✅ REPORTE: Historial de Matrículas -->
+        <button class="report-card" [class.active]="selectedReport === 'enrollment-history'"
+          (click)="generateReport('enrollment-history')">
+          <span class="material-icons">timeline</span>
+          <h3>Historial de Matrículas</h3>
+          <p>Evolución de matrículas por periodo académico</p>
+        </button>
+
+        <!-- ✅ NUEVO: Ir a Panel Completo de Reportes -->
+        <button class="report-card report-card-primary" (click)="goToReports()">
+          <span class="material-icons">analytics</span>
+          <h3>Panel Completo de Reportes</h3>
+          <p>Ver todos los reportes con gráficas interactivas</p>
+          <span class="material-icons arrow">arrow_forward</span>
+        </button>
+      </div>
+
+      <!-- Loading Report -->
+      <div *ngIf="loadingReport" class="loading-report">
+        <div class="spinner"></div>
+        <p>Generando reporte...</p>
+      </div>
+
+      <!-- Report Data: Estudiantes por Grado -->
+      <div *ngIf="reportData && selectedReport === 'students-by-grade' && !loadingReport" class="report-content">
+        <h3>📊 Estudiantes por Grado</h3>
+
+        <div class="chart-container">
+          <div class="bar-chart">
+            <div class="bar-item" *ngFor="let item of reportData">
+              <div class="bar-label">Grado {{ item._id }}°</div>
+              <div class="bar-visual">
+                <div class="bar-fill" [style.width.%]="(item.total_estudiantes / getMaxStudents(reportData)) * 100"
+                  [title]="item.total_estudiantes + ' estudiantes'">
+                  <span class="bar-value">{{ item.total_estudiantes }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Grado</th>
+              <th>Total Estudiantes</th>
+              <th>Porcentaje</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of reportData">
+              <td>Grado {{ item._id }}°</td>
+              <td class="number">{{ item.total_estudiantes }}</td>
+              <td class="number">{{ getPercentage(item.total_estudiantes, getTotalStudents(reportData)) }}%</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td><strong>Total</strong></td>
+              <td class="number"><strong>{{ getTotalStudents(reportData) }}</strong></td>
+              <td class="number"><strong>100%</strong></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- Report Data: Historial de Matrículas -->
+      <div *ngIf="reportData && selectedReport === 'enrollment-history' && !loadingReport" class="report-content">
+        <h3>📈 Historial de Matrículas</h3>
+
+        <div class="chart-container">
+          <div class="line-chart">
+            <div class="line-item" *ngFor="let item of reportData; let i = index">
+              <div class="line-label">{{ item.periodo }}</div>
+              <div class="line-visual">
+                <div class="line-point" [style.height.%]="(item.total_matriculas / getMaxEnrollments(reportData)) * 100"
+                  [title]="item.total_matriculas + ' matrículas'">
+                  <span class="line-value">{{ item.total_matriculas }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Periodo</th>
+              <th>Total Matrículas</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of reportData">
+              <td>{{ item.periodo }}</td>
+              <td class="number">{{ item.total_matriculas }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="!reportData && !loadingReport" class="empty-state">
+        <span class="material-icons">insights</span>
+        <h3>Selecciona un Reporte</h3>
+        <p>Haz clic en una de las tarjetas para generar el reporte</p>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,32 @@
+{
+  "/api/login": {
+    "target": "http://localhost:5000",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": {"^/api/login": ""}
+  },
+  "/api/students": {
+    "target": "http://localhost:5001",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": {"^/api/students": ""}
+  },
+  "/api/teachers": {
+    "target": "http://localhost:5002",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": {"^/api/teachers": ""}
+  },
+  "/api/admin": {
+    "target": "http://localhost:5003",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": {"^/api/admin": ""}
+  },
+  "/api/groups": {
+    "target": "http://localhost:5004",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": {"^/api/groups": ""}
+  }
+}

@@ -1,0 +1,206 @@
+<div class="reports-container">
+  <!-- Header -->
+  <header class="reports-header">
+    <button class="btn-back" (click)="goBack()">
+      <span class="material-icons">arrow_back</span>
+    </button>
+    <div>
+      <h1>📊 Panel de Reportes</h1>
+      <p class="subtitle">Visualización de estadísticas académicas con gráficas interactivas</p>
+    </div>
+  </header>
+
+  <!-- Error Alert -->
+  <div *ngIf="error" class="alert alert-error">
+    <span class="material-icons">error</span>
+    {{ error }}
+  </div>
+
+  <!-- Reports Grid -->
+  <div class="reports-grid">
+    <div *ngFor="let report of reports" class="report-card" [class.active]="selectedReport === report.id">
+      <div class="report-icon">
+        <span class="material-icons">{{ report.icon }}</span>
+      </div>
+      <h3>{{ report.title }}</h3>
+      <p>{{ report.description }}</p>
+
+      <div class="report-actions">
+        <button class="btn btn-primary" (click)="generateReport(report)" [disabled]="loading">
+          <span *ngIf="!loading || selectedReport !== report.id" class="material-icons">bar_chart</span>
+          <span *ngIf="loading && selectedReport === report.id" class="spinner-small"></span>
+          {{ loading && selectedReport === report.id ? 'Generando...' : 'Ver Gráfica' }}
+        </button>
+
+        <button class="btn btn-outline" (click)="downloadPDF(report)" [disabled]="loading">
+          <span class="material-icons">download</span>
+          PDF
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report Results with Chart -->
+  <div *ngIf="reportData" class="report-results">
+    <div class="results-header">
+      <h2>
+        <span class="material-icons">show_chart</span>
+        {{ getReportTitle() }}
+      </h2>
+      <button class="btn btn-outline" (click)="reportData = null; selectedReport = null">
+        <span class="material-icons">close</span>
+        Cerrar
+      </button>
+    </div>
+
+    <div class="results-content">
+      <!-- ✅ CANVAS PARA LA GRÁFICA -->
+      <div class="chart-container">
+        <canvas #chartCanvas></canvas>
+      </div>
+
+      <!-- Tabla de datos debajo de la gráfica -->
+      <div class="data-table-container">
+        <h3>
+          <span class="material-icons">table_chart</span>
+          Datos Detallados
+        </h3>
+
+        <!-- Estudiantes por Grado -->
+        <div *ngIf="selectedReport === 'students-by-grade'" class="data-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Grado</th>
+                <th>Cantidad de Estudiantes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- ✅ USAR reportData.report EN LUGAR DE reportData.data -->
+              <tr *ngFor="let item of reportData.report">
+                <td>Grado {{ item._id }}</td>
+                <td class="number">{{ item.total_estudiantes }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Desempeño por Curso -->
+        <div *ngIf="selectedReport === 'performance-by-course'" class="data-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Curso</th>
+                <th>Código</th>
+                <th>Promedio</th>
+                <th>Estudiantes</th>
+                <th>Calificaciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- ✅ USAR reportData.report CON LOS CAMPOS CORRECTOS -->
+              <tr *ngFor="let item of reportData.report">
+                <td>{{ item.nombre_curso }}</td>
+                <td>{{ item.codigo_curso }}</td>
+                <td class="number">{{ item.promedio | number:'1.2-2' }}</td>
+                <td class="number">{{ item.total_estudiantes }}</td>
+                <td class="number">{{ item.total_calificaciones }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Carga Académica Docentes -->
+        <div *ngIf="selectedReport === 'teacher-workload'" class="data-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Docente</th>
+                <th>Cursos</th>
+                <th>Estudiantes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- ✅ USAR reportData.report -->
+              <tr *ngFor="let item of reportData.report">
+                <td>{{ item.nombre_docente }}</td>
+                <td class="number">{{ item.total_cursos }}</td>
+                <td class="number">{{ item.total_estudiantes }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Historial de Matrículas -->
+        <div *ngIf="selectedReport === 'enrollment-history'" class="data-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Periodo</th>
+                <th>Total Matrículas</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- ✅ USAR reportData.report -->
+              <tr *ngFor="let item of reportData.report">
+                <td>Periodo {{ item.periodo || item._id }}</td>
+                <td class="number">{{ item.total_matriculas || item.total }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Estadísticas Académicas -->
+        <div *ngIf="selectedReport === 'academic-statistics'" class="stats-cards-grid">
+          <div class="stat-card-mini">
+            <span class="material-icons">school</span>
+            <div>
+              <p class="stat-label">Estudiantes</p>
+              <!-- ✅ ACCEDER CORRECTAMENTE -->
+              <p class="stat-value">{{ reportData.statistics?.estudiantes?.activos || reportData.total_estudiantes || 0
+                }}</p>
+            </div>
+          </div>
+          <div class="stat-card-mini">
+            <span class="material-icons">person</span>
+            <div>
+              <p class="stat-label">Docentes</p>
+              <p class="stat-value">{{ reportData.statistics?.docentes?.activos || reportData.total_docentes || 0 }}</p>
+            </div>
+          </div>
+          <div class="stat-card-mini">
+            <span class="material-icons">class</span>
+            <div>
+              <p class="stat-label">Cursos</p>
+              <p class="stat-value">{{ reportData.statistics?.cursos?.activos || reportData.total_cursos || 0 }}</p>
+            </div>
+          </div>
+          <div class="stat-card-mini">
+            <span class="material-icons">library_books</span>
+            <div>
+              <p class="stat-label">Matrículas</p>
+              <p class="stat-value">{{ reportData.statistics?.matriculas?.activas || reportData.total_matriculas || 0 }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Datos RAW JSON (para debug) -->
+        <details class="raw-data">
+          <summary>
+            <span class="material-icons">code</span>
+            Ver datos en formato JSON
+          </summary>
+          <pre>{{ formatReportData() }}</pre>
+        </details>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!reportData && !loading && !error" class="empty-state">
+      <span class="material-icons">insights</span>
+      <h3>Seleccione un reporte para visualizar</h3>
+      <p>Haga clic en "Ver Gráfica" en cualquiera de las tarjetas anteriores para generar visualizaciones interactivas
+      </p>
+    </div>
+  </div>
