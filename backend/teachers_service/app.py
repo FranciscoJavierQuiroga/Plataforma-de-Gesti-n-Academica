@@ -29,7 +29,11 @@ app.secret_key = "PlataformaColegios"
 # 🔧 CORS CONFIGURACIÓN COMPLETA
 CORS(app, resources={
     r"/*": {
-        "origins": ["http://localhost:4200"],
+        "origins": [
+            "http://localhost:4200",
+            "http://localhost:4300",
+            "https://plataformadegestionacademica.vercel.app"
+        ],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
         "expose_headers": ["Content-Type", "Authorization"],
@@ -41,7 +45,7 @@ def handle_preflight():
     if request.method == "OPTIONS":
         response = app.make_default_options_response()
         headers = {
-            'Access-Control-Allow-Origin': 'http://localhost:4200',
+            'Access-Control-Allow-Origin': request.headers.get('Origin', 'http://localhost:4200'),
             'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
             'Access-Control-Allow-Headers': 'Content-Type, Authorization',
             'Access-Control-Max-Age': '3600'

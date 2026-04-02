@@ -12,7 +12,18 @@ except Exception:
 
 app = Flask(__name__)
 app.secret_key = os.getenv('APP_SECRET', 'plataforma_secret')
-CORS(app)
+CORS(app, resources={
+    r"/*": {
+        "origins": [
+            "http://localhost:4200",
+            "http://localhost:4300",
+            "https://plataformadegestionacademica.vercel.app"
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "supports_credentials": True
+    }
+})
 
 # Keycloak configuration (from env)
 KEYCLOAK_SERVER = os.getenv('KEYCLOAK_SERVER_URL', 'http://localhost:8082')
