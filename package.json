@@ -11,7 +11,8 @@
     "test:coverage": "jest --coverage",
     "test:debug": "node --inspect-brk ./node_modules/jest/bin/jest.js --runInBand",
     "test:ci": "jest --ci --coverage --maxWorkers=2",
-    "test:file": "jest --findRelatedTests"
+    "test:file": "jest --findRelatedTests",
+    "build:lambda": "ng build -c lambda"
   },
   "prettier": {
     "printWidth": 100,
