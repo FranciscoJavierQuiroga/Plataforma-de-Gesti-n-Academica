@@ -80,12 +80,6 @@ export const routes: Routes = [
     data: { role: 'administrador' }
   },
   {
-    path: 'dashboard/admin/groups',
-    loadComponent: () => import('./dashboard/admin/groups/groups.component').then(m => m.AdminGroupsComponent),
-    canActivate: [RoleGuard],
-    data: { role: 'administrador' }
-  },
-  {
     path: 'dashboard/admin/students/new',
     loadComponent: () => import('./dashboard/admin/student-form/student-form').then(m => m.StudentFormComponent),
     canActivate: [RoleGuard],

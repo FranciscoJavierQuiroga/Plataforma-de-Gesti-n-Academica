@@ -4,6 +4,7 @@ import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
+import { AlertService } from '../../services/alert.service';
 
 @Component({
   selector: 'app-admin',
@@ -15,7 +16,7 @@ import { AuthService } from '../../services/auth.service';
 export default class AdminComponent implements OnInit {
   loading = false;
   error: string | null = null;
-  activeView: 'dashboard' | 'students' | 'courses' | 'enrollments' | 'reports' = 'dashboard';
+  activeView: 'dashboard' | 'students' | 'courses' | 'groups' | 'enrollments' | 'reports' = 'dashboard';
 
   adminName = 'Administrador';
 
@@ -40,6 +41,12 @@ export default class AdminComponent implements OnInit {
   courses: any[] = [];
   enrollments: any[] = [];
 
+  // Grupos
+  grupos: any[] = [];
+  estudiantesGrupo: any[] = [];
+  selectedGroup: any = null;
+  loadingGroups = false;
+
   // Reportes
   selectedReport: string | null = null;
   reportData: any = null;
@@ -48,7 +55,8 @@ export default class AdminComponent implements OnInit {
   constructor(
     private api: ApiService,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private alertService: AlertService
   ) {}
 
   ngOnInit(): void {
@@ -209,11 +217,16 @@ export default class AdminComponent implements OnInit {
 
   console.log('📊 Estadísticas actualizadas:', this.stats);
 }
-  changeView(view: 'dashboard' | 'students' | 'courses' | 'enrollments' | 'reports'): void {
+  changeView(view: 'dashboard' | 'students' | 'courses' | 'groups' | 'enrollments' | 'reports'): void {
     console.log(`🔄 Cambiando a vista: ${view}`);
     this.activeView = view;
     this.selectedReport = null;
     this.reportData = null;
+
+    if (view === 'groups') {
+      this.loadGroups();
+      this.loadGroupStudentsList();
+    }
   }
 
   // ✅ MÉTODO HELPER PARA FORMATEAR FECHA
@@ -358,7 +371,100 @@ export default class AdminComponent implements OnInit {
     return ((value / total) * 100).toFixed(1);
   }
   getMaxEnrollments(data: any[]): number {
-  if (!data || data.length === 0) return 1;
-  return Math.max(...data.map(item => item.total_matriculas || 0));
-}
+    if (!data || data.length === 0) return 1;
+    return Math.max(...data.map(item => item.total_matriculas || 0));
+  }
+
+  // ==========================================
+  //   GRUPOS
+  // ==========================================
+
+  loadGroups(): void {
+    this.loadingGroups = true;
+    this.api.getGroups().subscribe({
+      next: (res: any) => {
+        if (res.success) {
+          this.grupos = res.data || [];
+        } else {
+          this.grupos = [];
+        }
+        this.loadingGroups = false;
+      },
+      error: (err: any) => {
+        console.error('❌ Error cargando grupos:', err);
+        this.grupos = [];
+        this.loadingGroups = false;
+      }
+    });
+  }
+
+  loadGroupStudentsList(): void {
+    this.api.getAdminStudents().subscribe({
+      next: (res: any) => {
+        if (res.success) {
+          this.estudiantesGrupo = res.students || [];
+        } else {
+          this.estudiantesGrupo = [];
+        }
+      },
+      error: (err: any) => {
+        console.error('❌ Error cargando estudiantes:', err);
+        this.estudiantesGrupo = [];
+      }
+    });
+  }
+
+  selectGroup(grupo: any): void {
+    this.selectedGroup = grupo;
+    this.loadGroupStudents(grupo._id);
+  }
+
+  loadGroupStudents(groupId: string): void {
+    this.api.getGroupStudents(groupId).subscribe({
+      next: (res: any) => {
+        if (res.success) {
+          this.estudiantesGrupo = res.estudiantes || [];
+        } else {
+          this.estudiantesGrupo = [];
+        }
+      },
+      error: (err: any) => {
+        console.error('❌ Error cargando estudiantes del grupo:', err);
+        this.alertService.error('Error al cargar estudiantes del grupo');
+        this.estudiantesGrupo = [];
+      }
+    });
+  }
+
+  async assignStudent(studentId: string): Promise<void> {
+    if (!this.selectedGroup) {
+      this.alertService.warning('Seleccione un grupo primero');
+      return;
+    }
+
+    const confirmed = await this.alertService.confirm({
+      title: '¿Asignar estudiante?',
+      message: `¿Desea asignar este estudiante al grupo ${this.selectedGroup.nombre_grupo}?`,
+      confirmText: 'Sí, asignar',
+      cancelText: 'Cancelar'
+    });
+
+    if (confirmed) {
+      this.api.assignStudentToGroup(this.selectedGroup._id, studentId).subscribe({
+        next: (res: any) => {
+          if (res.success) {
+            this.alertService.success(
+              `Estudiante asignado y matriculado en ${res.matriculas_creadas} cursos`
+            );
+            this.loadGroupStudents(this.selectedGroup._id);
+            this.loadGroupStudentsList();
+          }
+        },
+        error: (err: any) => {
+          console.error('❌ Error asignando estudiante:', err);
+          this.alertService.error('Error al asignar estudiante');
+        }
+      });
+    }
+  }
 }

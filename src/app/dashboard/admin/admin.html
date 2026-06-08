@@ -30,7 +30,7 @@
       <span class="material-icons">class</span>
       Cursos
     </button>
-    <button routerLink="/dashboard/admin/groups">
+    <button (click)="changeView('groups')" [class.active]="activeView === 'groups'">
       <span class="material-icons">groups</span>
       Grupos
     </button>
@@ -483,6 +483,155 @@
         <span class="material-icons">insights</span>
         <h3>Selecciona un Reporte</h3>
         <p>Haz clic en una de las tarjetas para generar el reporte</p>
+      </div>
+    </div>
+
+    <!-- GROUPS VIEW -->
+    <div *ngIf="activeView === 'groups'" class="groups-view">
+      <div class="view-header">
+        <h2>Gestión de Grupos</h2>
+      </div>
+
+      <!-- LOADING -->
+      <div *ngIf="loadingGroups" class="loading-container">
+        <div class="spinner"></div>
+        <p>Cargando grupos...</p>
+      </div>
+
+      <!-- CONTENT -->
+      <div class="groups-layout" *ngIf="!loadingGroups">
+        <!-- LEFT COLUMN: GROUP LIST -->
+        <div class="groups-list-section">
+          <div class="section-card">
+            <div class="section-header">
+              <h2>Grupos Disponibles</h2>
+              <span class="badge">{{ grupos.length }} grupos</span>
+            </div>
+
+            <div class="groups-grid">
+              <div *ngFor="let grupo of grupos" class="group-card"
+                [class.selected]="selectedGroup?._id === grupo._id" (click)="selectGroup(grupo)">
+                <div class="group-header">
+                  <div class="group-icon">
+                    <span class="material-icons">school</span>
+                  </div>
+                  <div class="group-info">
+                    <h3>{{ grupo.nombre_grupo }}</h3>
+                    <p class="group-meta">
+                      <span class="material-icons">calendar_today</span>
+                      {{ grupo.anio_lectivo }}
+                    </p>
+                  </div>
+                </div>
+
+                <div class="group-details">
+                  <div class="detail-item">
+                    <span class="material-icons">wb_sunny</span>
+                    <span>{{ grupo.jornada | titlecase }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="material-icons">people</span>
+                    <span>Capacidad: {{ grupo.capacidad_max }}</span>
+                  </div>
+                </div>
+
+                <div class="group-director" *ngIf="grupo.director_info">
+                  <span class="material-icons">person</span>
+                  <span>{{ grupo.director_info.nombres }} {{ grupo.director_info.apellidos }}</span>
+                </div>
+
+                <div class="group-status" [class.active]="grupo.activo">
+                  <span class="status-dot"></span>
+                  {{ grupo.activo ? 'Activo' : 'Inactivo' }}
+                </div>
+              </div>
+
+              <div *ngIf="grupos.length === 0" class="empty-state">
+                <span class="material-icons">folder_open</span>
+                <p>No hay grupos disponibles</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN: GROUP DETAILS -->
+        <div class="group-details-section">
+          <div *ngIf="!selectedGroup" class="empty-selection">
+            <span class="material-icons">touch_app</span>
+            <h3>Selecciona un grupo</h3>
+            <p>Haz clic en un grupo de la izquierda para ver sus detalles</p>
+          </div>
+
+          <div *ngIf="selectedGroup">
+            <!-- STUDENTS IN GROUP -->
+            <div class="section-card">
+              <div class="section-header">
+                <h2>
+                  <span class="material-icons">people</span>
+                  Estudiantes de {{ selectedGroup.nombre_grupo }}
+                </h2>
+                <span class="badge">{{ estudiantesGrupo.length }} estudiantes</span>
+              </div>
+
+              <div class="students-list">
+                <div *ngFor="let estudiante of estudiantesGrupo" class="student-item">
+                  <div class="student-avatar">
+                    <span class="material-icons">person</span>
+                  </div>
+                  <div class="student-info">
+                    <h4>{{ estudiante.nombres }} {{ estudiante.apellidos }}</h4>
+                    <p>{{ estudiante.codigo_est }}</p>
+                  </div>
+                  <div class="student-meta">
+                    <span class="material-icons">email</span>
+                    <span>{{ estudiante.correo }}</span>
+                  </div>
+                </div>
+
+                <div *ngIf="estudiantesGrupo.length === 0" class="empty-state">
+                  <span class="material-icons">person_off</span>
+                  <p>No hay estudiantes asignados a este grupo</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ASSIGN STUDENTS -->
+            <div class="section-card">
+              <div class="section-header">
+                <h2>
+                  <span class="material-icons">person_add</span>
+                  Asignar Estudiantes
+                </h2>
+              </div>
+
+              <div class="assign-students-list" *ngIf="estudiantesGrupo && estudiantesGrupo.length > 0">
+                <div *ngFor="let estudiante of estudiantesGrupo" class="assign-student-item"
+                  [class.disabled]="estudiante.grupo">
+                  <div class="student-avatar">
+                    <span class="material-icons">person</span>
+                  </div>
+                  <div class="student-info">
+                    <h4>{{ estudiante.nombres }} {{ estudiante.apellidos }}</h4>
+                    <p>{{ estudiante.codigo_est }}</p>
+                    <span *ngIf="estudiante.grupo" class="current-group">
+                      Ya en: {{ estudiante.grupo }}
+                    </span>
+                  </div>
+                  <button class="btn-assign" [disabled]="estudiante.grupo"
+                    (click)="assignStudent(estudiante._id)">
+                    <span class="material-icons">add</span>
+                    Asignar
+                  </button>
+                </div>
+              </div>
+
+              <div *ngIf="!estudiantesGrupo || estudiantesGrupo.length === 0" class="empty-state">
+                <span class="material-icons">person_search</span>
+                <p>{{ estudiantesGrupo === undefined ? 'Cargando estudiantes...' : 'No hay estudiantes disponibles' }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
