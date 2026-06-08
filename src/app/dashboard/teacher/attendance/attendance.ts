@@ -185,4 +185,6 @@ export default class AttendanceComponent implements OnInit {
 
     return { presentes, ausentes, tardes, excusas, total: this.estudiantes.length };
   }
+
+  trackByStudent(index: number, student: any): string { return student.id_estudiante || student.codigo || index; }
 }

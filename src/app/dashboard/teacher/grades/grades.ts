@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ApiService } from '../../../services/api.service';
+import { AlertService } from '../../../services/alert.service';
 
 interface Calificacion {
   tipo: string;
@@ -59,7 +60,8 @@ export default class GradesComponent implements OnInit {
 
   constructor(
     private router: Router,
-    private api: ApiService
+    private api: ApiService,
+    private alertService: AlertService
   ) { }
 
   ngOnInit() {
@@ -151,7 +153,7 @@ export default class GradesComponent implements OnInit {
     );
 
     if (notasInvalidas) {
-      alert('Error: Las notas deben estar entre 0.0 y 5.0');
+      this.alertService.error('Las notas deben estar entre 0.0 y 5.0');
       return;
     }
 
@@ -190,7 +192,7 @@ export default class GradesComponent implements OnInit {
       });
 
     if (gradesToUpload.length === 0) {
-      alert('No hay calificaciones para guardar');
+      this.alertService.warning('No hay calificaciones para guardar');
       this.guardando = false;
       return;
     }
@@ -205,23 +207,27 @@ export default class GradesComponent implements OnInit {
       next: (res: any) => {
         this.guardando = false;
         if (res.success) {
-          alert(`Calificaciones guardadas exitosamente.\n\nExitosas: ${res.successful}\nFallidas: ${res.failed}`);
+          this.alertService.success(
+            `Calificaciones guardadas: ${res.successful} exitosas, ${res.failed} fallidas`
+          );
           this.cargarCalificaciones();
         }
       },
       error: (err) => {
         console.error('Error guardando calificaciones:', err);
-        alert('Error al guardar calificaciones');
+        this.alertService.error('Error al guardar calificaciones');
         this.guardando = false;
       }
     });
   }
 
   exportarPDF() {
-    alert('Funcionalidad de exportación a PDF en desarrollo.\n\nSe implementará similar a los boletines de estudiantes.');
+    this.alertService.info('Funcionalidad de exportación a PDF en desarrollo');
   }
 
   goBack() {
     this.router.navigate(['/dashboard/teacher']);
   }
+
+  trackByEstudiante(index: number, estudiante: any): string { return estudiante.student_id || estudiante.enrollment_id || index; }
 }

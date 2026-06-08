@@ -122,7 +122,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let student of students" class="student-row">
+          <tr *ngFor="let student of students; trackBy: trackByStudent" class="student-row">
             <td class="code">{{ student.student_code }}</td>
             <td class="name">
               <div class="student-name">{{ student.student_name }}</div>

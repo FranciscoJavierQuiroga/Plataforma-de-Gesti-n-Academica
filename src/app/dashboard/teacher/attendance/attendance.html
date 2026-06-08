@@ -119,7 +119,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let e of estudiantes" [class.ausente]="e.estado === 'ausente'">
+        <tr *ngFor="let e of estudiantes; trackBy: trackByStudent" [class.ausente]="e.estado === 'ausente'">
           <td class="codigo">{{ e.codigo }}</td>
           <td class="nombre">{{ e.nombre }}</td>
           <td class="estado">

@@ -147,4 +147,6 @@ export default class TeacherComponent implements OnInit {
       this.alertService.error('Error al cerrar sesión');
     }
   }
+
+  trackByGroup(index: number, group: any): string { return group._id || group.id || index; }
 }

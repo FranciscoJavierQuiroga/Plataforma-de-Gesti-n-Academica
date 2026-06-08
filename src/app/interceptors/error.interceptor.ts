@@ -2,13 +2,14 @@ import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
+import { AlertService } from '../services/alert.service';
 
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const router = inject(Router);
+  const alertService = inject(AlertService);
   
   return next(req).pipe(
     catchError((error: HttpErrorResponse) => {
-      console.error('HTTP Error:', error);
       
       if (error.status === 401) {
         console.warn('No autorizado - redirigiendo a login');
@@ -18,8 +19,7 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
       }
       
       if (error.status === 403) {
-        console.warn('Sin permisos');
-        alert('No tienes permisos para acceder a este recurso');
+        alertService.error('No tienes permisos para acceder a este recurso');
       }
       
       return throwError(() => error);

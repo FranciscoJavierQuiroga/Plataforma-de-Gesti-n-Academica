@@ -137,4 +137,14 @@ export default class StudentComponent implements OnInit {
       }, 1000);
     }
   }
+
+  trackByCourse(index: number, course: any): string {
+    return course._id || index;
+  }
+  trackByDay(index: number, day: any): string {
+    return day._id || day.date || index;
+  }
+  trackByEvent(index: number, event: any): string {
+    return event._id || event.id || index;
+  }
 }

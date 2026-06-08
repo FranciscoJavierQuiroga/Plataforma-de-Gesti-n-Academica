@@ -333,4 +333,6 @@ onGrupoChangeModal() {
   formatFecha(fecha: string): string {
     return new Date(fecha).toLocaleDateString('es-CO');
   }
+
+  trackByObservation(index: number, observation: any): string { return observation._id || observation.id || index; }
 }

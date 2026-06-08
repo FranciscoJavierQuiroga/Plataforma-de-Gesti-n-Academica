@@ -69,7 +69,7 @@
       </div>
 
       <div class="groups-list" *ngIf="groups.length > 0">
-        <div *ngFor="let g of groups" class="group-item">
+        <div *ngFor="let g of groups; trackBy: trackByGroup" class="group-item">
           <div class="group-info">
             <div class="group-name">{{ g.name }}</div>
             <div class="group-meta">

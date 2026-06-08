@@ -66,7 +66,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let s of estudiantes">
+        <tr *ngFor="let s of estudiantes; trackBy: trackByEstudiante">
           <td class="code">{{ s.student_code }}</td>
           <td class="name">{{ s.student_name }}</td>
           <td><input type="number" [(ngModel)]="s.nota1" step="0.1" min="0" max="5" /></td>

@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ApiService } from '../../../services/api.service';
+import { AlertService } from '../../../services/alert.service';
 
 interface Student {
   enrollment_id: string;
@@ -53,7 +54,8 @@ export default class GroupDetailComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private api: ApiService
+    private api: ApiService,
+    private alertService: AlertService
   ) {}
 
   ngOnInit() {
@@ -129,6 +131,8 @@ export default class GroupDetailComponent implements OnInit {
 
   viewStudentDetail(student: Student) {
     // Implementar vista detallada del estudiante
-    alert(`Vista detallada del estudiante: ${student.student_name}\nEsta funcionalidad se implementará próximamente.`);
+    this.alertService.info(`Vista detallada del estudiante: ${student.student_name}\nEsta funcionalidad se implementará próximamente.`);
   }
+
+  trackByStudent(index: number, student: any): string { return student.student_id || student.enrollment_id || index; }
 }

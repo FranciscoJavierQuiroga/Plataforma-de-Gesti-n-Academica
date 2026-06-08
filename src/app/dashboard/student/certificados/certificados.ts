@@ -123,4 +123,8 @@ export default class CertificadosComponent implements OnInit {
   isLoading(tipo: string): boolean {
     return this.loadingCertificado === tipo;
   }
+
+  trackByCourse(index: number, course: any): string {
+    return course._id || index;
+  }
 }

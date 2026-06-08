@@ -467,4 +467,23 @@ export default class AdminComponent implements OnInit {
       });
     }
   }
+
+  trackByStudent(index: number, student: any): string {
+    return student._id || index;
+  }
+  trackByCourse(index: number, course: any): string {
+    return course._id || index;
+  }
+  trackByEnrollment(index: number, enrollment: any): string {
+    return enrollment._id || index;
+  }
+  trackByGrupo(index: number, grupo: any): string {
+    return grupo._id || index;
+  }
+  trackByEstudiante(index: number, estudiante: any): string {
+    return estudiante._id || index;
+  }
+  trackByReportData(index: number, item: any): string {
+    return item._id || item.id || index;
+  }
 }

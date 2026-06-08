@@ -2,6 +2,7 @@ import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { ApiService } from '../../../services/api.service';
+import { AlertService } from '../../../services/alert.service';
 import { Chart, ChartConfiguration, registerables } from 'chart.js';
 
 // Registrar componentes de Chart.js
@@ -77,7 +78,8 @@ export class ReportsComponent implements OnInit {
 
   constructor(
     private api: ApiService,
-    private router: Router
+    private router: Router,
+    private alertService: AlertService
   ) {}
 
   ngOnInit(): void {}
@@ -534,7 +536,7 @@ createAcademicStatisticsChart(): ChartConfiguration {
     };
   }
   downloadPDF(report: Report): void {
-    alert(`Descarga de PDF para "${report.title}" en desarrollo.\n\nEn producción se generará un PDF con la gráfica.`);
+    this.alertService.info(`Descarga de PDF para "${report.title}" en desarrollo.\n\nEn producción se generará un PDF con la gráfica.`);
   }
 
   goBack(): void {

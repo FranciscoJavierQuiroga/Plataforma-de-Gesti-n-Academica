@@ -128,7 +128,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let student of students.slice(0, 5)">
+              <tr *ngFor="let student of students.slice(0, 5); trackBy: trackByStudent">
                 <td>{{ student.codigo_est }}</td>
                 <td>{{ student.nombres }} {{ student.apellidos }}</td>
                 <td>
@@ -152,7 +152,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let enrollment of enrollments.slice(0, 5)">
+              <tr *ngFor="let enrollment of enrollments.slice(0, 5); trackBy: trackByEnrollment">
                 <td>{{ enrollment.estudiante_info?.nombres }} {{ enrollment.estudiante_info?.apellidos }}</td>
                 <td>{{ enrollment.grupo_info?.nombre_grupo }}</td>
                 <td>
@@ -190,7 +190,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let student of students">
+          <tr *ngFor="let student of students; trackBy: trackByStudent">
             <td>{{ student.codigo_est }}</td>
             <td>{{ student.nombres }} {{ student.apellidos }}</td>
             <td>{{ student.documento }}</td>
@@ -236,7 +236,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let course of courses">
+          <tr *ngFor="let course of courses; trackBy: trackByCourse">
             <td>{{ course.codigo_curso }}</td>
             <td>{{ course.nombre_curso }}</td>
             <td>{{ course.grado }}</td>
@@ -315,7 +315,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let enrollment of enrollments">
+          <tr *ngFor="let enrollment of enrollments; trackBy: trackByEnrollment">
             <td>
               <strong>{{ enrollment.estudiante_info?.nombres }} {{ enrollment.estudiante_info?.apellidos }}</strong>
               <br>
@@ -407,7 +407,7 @@
 
         <div class="chart-container">
           <div class="bar-chart">
-            <div class="bar-item" *ngFor="let item of reportData">
+            <div class="bar-item" *ngFor="let item of reportData; trackBy: trackByReportData">
               <div class="bar-label">Grado {{ item._id }}°</div>
               <div class="bar-visual">
                 <div class="bar-fill" [style.width.%]="(item.total_estudiantes / getMaxStudents(reportData)) * 100"
@@ -428,7 +428,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let item of reportData">
+            <tr *ngFor="let item of reportData; trackBy: trackByReportData">
               <td>Grado {{ item._id }}°</td>
               <td class="number">{{ item.total_estudiantes }}</td>
               <td class="number">{{ getPercentage(item.total_estudiantes, getTotalStudents(reportData)) }}%</td>
@@ -450,7 +450,7 @@
 
         <div class="chart-container">
           <div class="line-chart">
-            <div class="line-item" *ngFor="let item of reportData; let i = index">
+            <div class="line-item" *ngFor="let item of reportData; let i = index; trackBy: trackByReportData">
               <div class="line-label">{{ item.periodo }}</div>
               <div class="line-visual">
                 <div class="line-point" [style.height.%]="(item.total_matriculas / getMaxEnrollments(reportData)) * 100"
@@ -470,7 +470,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let item of reportData">
+            <tr *ngFor="let item of reportData; trackBy: trackByReportData">
               <td>{{ item.periodo }}</td>
               <td class="number">{{ item.total_matriculas }}</td>
             </tr>
@@ -509,7 +509,7 @@
             </div>
 
             <div class="groups-grid">
-              <div *ngFor="let grupo of grupos" class="group-card"
+              <div *ngFor="let grupo of grupos; trackBy: trackByGrupo" class="group-card"
                 [class.selected]="selectedGroup?._id === grupo._id" (click)="selectGroup(grupo)">
                 <div class="group-header">
                   <div class="group-icon">
@@ -574,7 +574,7 @@
               </div>
 
               <div class="students-list">
-                <div *ngFor="let estudiante of estudiantesGrupo" class="student-item">
+                <div *ngFor="let estudiante of estudiantesGrupo; trackBy: trackByEstudiante" class="student-item">
                   <div class="student-avatar">
                     <span class="material-icons">person</span>
                   </div>
@@ -605,7 +605,7 @@
               </div>
 
               <div class="assign-students-list" *ngIf="estudiantesGrupo && estudiantesGrupo.length > 0">
-                <div *ngFor="let estudiante of estudiantesGrupo" class="assign-student-item"
+                <div *ngFor="let estudiante of estudiantesGrupo; trackBy: trackByEstudiante" class="assign-student-item"
                   [class.disabled]="estudiante.grupo">
                   <div class="student-avatar">
                     <span class="material-icons">person</span>

@@ -101,11 +101,15 @@ getCursosDelPeriodo() {
   }).filter(curso => curso.promedio > 0); // Solo mostrar cursos con calificaciones
 }
 
-getPromedioGeneral(): number {
-  const cursosDelPeriodo = this.getCursosDelPeriodo();
-  if (cursosDelPeriodo.length === 0) return 0;
+  getPromedioGeneral(): number {
+    const cursosDelPeriodo = this.getCursosDelPeriodo();
+    if (cursosDelPeriodo.length === 0) return 0;
   
-  const suma = cursosDelPeriodo.reduce((acc, c) => acc + (c.promedio || 0), 0);
-  return Number((suma / cursosDelPeriodo.length).toFixed(2));
-}
+    const suma = cursosDelPeriodo.reduce((acc, c) => acc + (c.promedio || 0), 0);
+    return Number((suma / cursosDelPeriodo.length).toFixed(2));
+  }
+
+  trackByCourse(index: number, course: any): string {
+    return course._id || index;
+  }
 }

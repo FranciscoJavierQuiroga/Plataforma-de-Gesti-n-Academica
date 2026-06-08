@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { ApiService } from '../../../services/api.service';
+import { AlertService } from '../../../services/alert.service';
 import { HttpResponse } from '@angular/common/http';
 
 interface TipoInforme {
@@ -56,7 +57,8 @@ export class Informes {
 
   constructor(
     private router: Router,
-    private api: ApiService
+    private api: ApiService,
+    private alertService: AlertService
   ) {}
 
   generarInforme(tipo: TipoInforme) {
@@ -64,12 +66,11 @@ export class Informes {
     
     // Aquí agregarías la llamada real al backend cuando esté implementado
     // Por ahora simulamos la generación
-    console.log(`Generando informe: ${tipo.nombre}`);
     
     // Mock: simular descarga de PDF
     setTimeout(() => {
       this.loading = false;
-      alert(`Informe "${tipo.nombre}" generado exitosamente.\n\nEn producción, este PDF se descargaría automáticamente.`);
+      this.alertService.success(`Informe "${tipo.nombre}" generado exitosamente.\n\nEn producción, este PDF se descargaría automáticamente.`);
     }, 1500);
   }
 

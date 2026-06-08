@@ -98,7 +98,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let o of observacionesFiltradas">
+        <tr *ngFor="let o of observacionesFiltradas; trackBy: trackByObservation">
           <td class="fecha">{{ formatFecha(o.fecha) }}</td>
           <td class="estudiante">
             <div class="est-name">{{ getEstudianteNombre(o) }}</div>
