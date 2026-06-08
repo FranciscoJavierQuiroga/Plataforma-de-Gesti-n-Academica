@@ -1,5 +1,5 @@
 Flask==2.3.3
-Flask-CORS==4.0.0
+Flask-CORS==4.0.2
 zappa==0.58.0
 Werkzeug==2.3.7
 python-keycloak==2.16.3
