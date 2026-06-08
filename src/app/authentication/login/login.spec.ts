@@ -214,10 +214,8 @@ describe('LoginComponent', () => {
     }, 100);
   });
 
-  it('should handle API error', (done) => {
-    const errorResponse = { 
-      message: 'Invalid credentials' 
-    };
+  it('should show friendly message for 401 unauthorized', (done) => {
+    const errorResponse = { status: 401, error: { error: 'Invalid credentials' } };
 
     component.username = 'testuser';
     component.password = 'wrongpassword';
@@ -229,7 +227,45 @@ describe('LoginComponent', () => {
     component.login(new Event('submit'));
 
     setTimeout(() => {
-      expect(component.error).toBe('Invalid credentials');
+      expect(component.error).toBe('Usuario o contraseña incorrectos');
+      expect(component.loading).toBe(false);
+      done();
+    }, 100);
+  });
+
+  it('should show friendly message for network error (status 0)', (done) => {
+    const errorResponse = { status: 0 };
+
+    component.username = 'testuser';
+    component.password = 'password123';
+
+    jest.spyOn(apiService, 'login').mockReturnValue(
+      throwError(() => errorResponse)
+    );
+
+    component.login(new Event('submit'));
+
+    setTimeout(() => {
+      expect(component.error).toBe('No se pudo conectar con el servidor. Verifica tu conexión a internet.');
+      expect(component.loading).toBe(false);
+      done();
+    }, 100);
+  });
+
+  it('should show friendly message for server error (status 500)', (done) => {
+    const errorResponse = { status: 500, error: { error: 'Internal server error' } };
+
+    component.username = 'testuser';
+    component.password = 'password123';
+
+    jest.spyOn(apiService, 'login').mockReturnValue(
+      throwError(() => errorResponse)
+    );
+
+    component.login(new Event('submit'));
+
+    setTimeout(() => {
+      expect(component.error).toBe('Error del servidor. Intenta nuevamente más tarde.');
       expect(component.loading).toBe(false);
       done();
     }, 100);

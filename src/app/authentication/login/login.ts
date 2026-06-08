@@ -66,7 +66,17 @@ export default class LoginComponent {  // ✅ Cambiar a 'export default'
       },
       error: (err) => {
         this.loading = false;
-        this.error = err.message || 'Error al iniciar sesión';
+
+        if (err.status === 401) {
+          this.error = 'Usuario o contraseña incorrectos';
+        } else if (err.status === 0) {
+          this.error = 'No se pudo conectar con el servidor. Verifica tu conexión a internet.';
+        } else if (err.status >= 500) {
+          this.error = 'Error del servidor. Intenta nuevamente más tarde.';
+        } else {
+          this.error = err.error?.error || 'Error al iniciar sesión. Intenta nuevamente.';
+        }
+
         console.error('Error en login:', err);
       }
     });
