@@ -129,7 +129,7 @@ export default class StudentComponent implements OnInit {
       localStorage.removeItem('user_role');
       localStorage.removeItem('userInfo');
       
-      this.alertService.success('Sesión cerrada exitosamente', '👋 Hasta pronto');
+      this.alertService.success('Sesión cerrada exitosamente', 'Hasta pronto');
       
       // Redirigir al login
       setTimeout(() => {

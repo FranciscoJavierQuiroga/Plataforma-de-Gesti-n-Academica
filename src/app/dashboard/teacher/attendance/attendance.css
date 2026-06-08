@@ -11,16 +11,19 @@
 }
 
 .attendance-root { 
-  padding: 16px;
+  padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
-  font-family: Inter, Arial, sans-serif;
+  font-family: var(--font-body);
+  animation: fadeInUp 0.6s var(--ease-out) both;
 }
 
 .attendance-header h2 { 
   margin: 0; 
-  color: #0b6b3a;
+  color: var(--primary);
   font-size: 24px;
+  font-family: var(--font-display);
+  font-weight: 600;
 }
 
 .attendance-header .hint { 

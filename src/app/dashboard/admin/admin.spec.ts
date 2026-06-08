@@ -517,7 +517,7 @@ describe('AdminComponent', () => {
       expect(removeItemSpy).toHaveBeenCalledWith('access_token');
       expect(removeItemSpy).toHaveBeenCalledWith('user_role');
       expect(removeItemSpy).toHaveBeenCalledWith('userInfo');
-      expect(alertService.success).toHaveBeenCalledWith('Sesión cerrada exitosamente', '👋 Hasta pronto');
+      expect(alertService.success).toHaveBeenCalledWith('Sesión cerrada exitosamente', 'Hasta pronto');
 
       jest.advanceTimersByTime(1000);
       expect(navigateSpy).toHaveBeenCalledWith(['/login']);

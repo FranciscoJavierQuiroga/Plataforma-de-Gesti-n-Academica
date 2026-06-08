@@ -26,7 +26,7 @@ export class AlertService {
   alert$ = this.alertSubject.asObservable();
   confirm$ = this.confirmSubject.asObservable();
 
-  success(message: string, title: string = '✅ Éxito', duration: number = 3000) {
+  success(message: string, title: string = 'Éxito', duration: number = 3000) {
     this.alertSubject.next({
       type: 'success',
       title,
@@ -35,7 +35,7 @@ export class AlertService {
     });
   }
 
-  error(message: string, title: string = '❌ Error', duration: number = 4000) {
+  error(message: string, title: string = 'Error', duration: number = 4000) {
     this.alertSubject.next({
       type: 'error',
       title,
@@ -44,7 +44,7 @@ export class AlertService {
     });
   }
 
-  warning(message: string, title: string = '⚠️ Advertencia', duration: number = 3500) {
+  warning(message: string, title: string = 'Advertencia', duration: number = 3500) {
     this.alertSubject.next({
       type: 'warning',
       title,
@@ -53,7 +53,7 @@ export class AlertService {
     });
   }
 
-  info(message: string, title: string = 'ℹ️ Información', duration: number = 3000) {
+  info(message: string, title: string = 'Información', duration: number = 3000) {
     this.alertSubject.next({
       type: 'info',
       title,

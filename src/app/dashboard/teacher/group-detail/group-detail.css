@@ -2,8 +2,9 @@
   padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
-  font-family: Inter, Arial, sans-serif;
-  color: #183c35;
+  font-family: var(--font-body);
+  color: var(--text);
+  animation: fadeInUp 0.6s var(--ease-out) both;
 }
 
 /* Header */
@@ -12,20 +13,24 @@
 }
 
 .back-btn {
-  background: #fff;
-  border: 1px solid #d7e7df;
+  background: var(--surface-card);
+  border: 1px solid var(--border-strong);
   padding: 8px 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   cursor: pointer;
-  color: #2b6b54;
+  color: var(--primary);
   font-weight: 600;
   margin-bottom: 16px;
-  transition: all 0.2s;
+  transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .back-btn:hover {
-  background: #f0f7f3;
-  border-color: #2b6b54;
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  transform: translateY(-1px);
 }
 
 .header-content {
@@ -33,16 +38,25 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 24px;
-  padding: 20px;
-  background: #fff;
-  border-radius: 12px;
-  border: 1px solid #e6f0ea;
+  padding: 24px;
+  background: var(--surface-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-base);
+}
+
+.header-content:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
 }
 
 .title-section h1 {
   margin: 0 0 12px 0;
-  color: #0b6b3a;
+  color: var(--primary);
   font-size: 24px;
+  font-family: var(--font-display);
+  font-weight: 600;
 }
 
 .metadata {
@@ -52,10 +66,10 @@
 }
 
 .badge {
-  background: #eef7ef;
-  color: #0b6b3a;
+  background: var(--primary-soft);
+  color: var(--primary);
   padding: 4px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
   font-weight: 600;
 }
@@ -115,17 +129,19 @@
 }
 
 .stat-card {
-  background: #fff;
-  border: 1px solid #e6f0ea;
-  border-radius: 12px;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   padding: 20px;
   text-align: center;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: all var(--transition-base);
+  box-shadow: var(--shadow-sm);
 }
 
 .stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(11, 107, 58, 0.1);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
 }
 
 .stat-card .stat-icon {

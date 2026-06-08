@@ -225,7 +225,7 @@ describe('BoletinesComponent', () => {
       expect(component.loading).toBe(false);
       expect(global.URL.createObjectURL).toHaveBeenCalled();
       expect(document.createElement).toHaveBeenCalledWith('a');
-      expect(component.successMessage).toBe('✅ Boletín descargado exitosamente');
+      expect(component.successMessage).toBe('Boletín descargado exitosamente');
       consoleLogSpy.mockRestore();
     }));
 
@@ -233,7 +233,7 @@ describe('BoletinesComponent', () => {
       component.downloadBoletin();
       
       tick();
-      expect(component.successMessage).toBe('✅ Boletín descargado exitosamente');
+      expect(component.successMessage).toBe('Boletín descargado exitosamente');
       
       tick(3000);
       expect(component.successMessage).toBeNull();

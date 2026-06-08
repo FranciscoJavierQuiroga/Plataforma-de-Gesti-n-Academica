@@ -3,7 +3,7 @@
     <div class="page-header">
         <div class="header-content">
             <div class="header-left">
-                <!-- ✅ BOTÓN DE REGRESO -->
+                <!-- BOTÓN DE REGRESO -->
                 <button class="btn-back" routerLink="/dashboard/admin">
                     <span class="material-icons">arrow_back</span>
                     <span>Volver al Panel</span>
@@ -133,7 +133,7 @@
                         </h2>
                     </div>
 
-                    <!-- ✅ VERIFICAR QUE estudiantes NO SEA UNDEFINED -->
+                    <!-- VERIFICAR QUE estudiantes NO SEA UNDEFINED -->
                     <div class="assign-students-list" *ngIf="estudiantes && estudiantes.length > 0">
                         <div *ngFor="let estudiante of estudiantes" class="assign-student-item"
                             [class.disabled]="estudiante.grupo">
@@ -155,7 +155,7 @@
                         </div>
                     </div>
 
-                    <!-- ✅ MENSAJE SI NO HAY ESTUDIANTES O ESTÁ UNDEFINED -->
+                    <!-- MENSAJE SI NO HAY ESTUDIANTES O ESTÁ UNDEFINED -->
                     <div *ngIf="!estudiantes || estudiantes.length === 0" class="empty-state">
                         <span class="material-icons">person_search</span>
                         <p>{{ estudiantes === undefined ? 'Cargando estudiantes...' : 'No hay estudiantes disponibles'

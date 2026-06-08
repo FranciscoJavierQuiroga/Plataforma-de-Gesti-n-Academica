@@ -53,28 +53,28 @@ export default class CertificadosComponent implements OnInit {
         id: 'estudio',
         nombre: 'Certificado de Estudio',
         descripcion: 'Certifica que el estudiante está matriculado actualmente en la institución',
-        icon: '📄',
+        icon: 'description',
         disponible: true
       },
       {
         id: 'notas',
         nombre: 'Certificado de Notas',
         descripcion: 'Documento oficial con el historial académico completo del estudiante',
-        icon: '📊',
+        icon: 'bar_chart',
         disponible: true
       },
       {
         id: 'conducta',
         nombre: 'Certificado de Conducta',
         descripcion: 'Certifica el comportamiento y disciplina del estudiante',
-        icon: '⭐',
+        icon: 'star',
         disponible: true
       },
       {
         id: 'asistencia',
         nombre: 'Certificado de Asistencia',
         descripcion: 'Documento que certifica el porcentaje de asistencia a clases',
-        icon: '✅',
+        icon: 'check_circle',
         disponible: true
       }
     ];
@@ -103,7 +103,7 @@ export default class CertificadosComponent implements OnInit {
           document.body.removeChild(a);
           window.URL.revokeObjectURL(url);
 
-          this.successMessage = `✅ Certificado de ${this.getNombreCertificado(tipo)} descargado exitosamente`;
+          this.successMessage = `Certificado de ${this.getNombreCertificado(tipo)} descargado exitosamente`;
           setTimeout(() => this.successMessage = null, 3000);
         }
       },

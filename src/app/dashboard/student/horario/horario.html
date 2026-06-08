@@ -8,7 +8,7 @@
 
   <!-- Día Actual -->
   <div class="current-day card">
-    <div class="day-icon">📅</div>
+    <div class="day-icon"><span class="material-icons">event</span></div>
     <div class="day-info">
       <div class="day-label">Hoy es</div>
       <div class="day-name">{{ getDiaActual() }}</div>
@@ -23,7 +23,7 @@
 
   <!-- Error State -->
   <div *ngIf="error" class="alert alert-error">
-    ❌ {{ error }}
+    <span class="material-icons">error_outline</span> {{ error }}
   </div>
 
   <!-- Tabla de Horario -->

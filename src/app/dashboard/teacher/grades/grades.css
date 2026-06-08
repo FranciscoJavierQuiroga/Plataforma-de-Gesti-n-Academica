@@ -6,7 +6,9 @@
 }
 
 .grades-root {
-    padding: 16px
+    padding: 20px;
+    font-family: var(--font-body);
+    animation: fadeInUp 0.6s var(--ease-out) both;
 }
 
 .grades-header h2 {

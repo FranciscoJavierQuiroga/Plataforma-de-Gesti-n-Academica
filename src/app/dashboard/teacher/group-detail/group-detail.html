@@ -26,7 +26,7 @@
 
   <!-- Error State -->
   <div *ngIf="error && !loading" class="error-state">
-    <div class="error-icon">⚠️</div>
+    <div class="error-icon"><span class="material-icons">warning</span></div>
     <p>{{ error }}</p>
     <button class="btn-primary" (click)="loadGroupDetails()">Reintentar</button>
   </div>
@@ -36,35 +36,35 @@
     <!-- Estadísticas -->
     <section class="stats-grid">
       <div class="stat-card">
-        <div class="stat-icon">👥</div>
+        <span class="material-icons stat-icon">groups</span>
         <div class="stat-value">{{ stats.total_students }}</div>
         <div class="stat-label">Total Estudiantes</div>
         <div class="stat-meta">Capacidad: {{ group?.capacidad_max || '—' }}</div>
       </div>
 
       <div class="stat-card success">
-        <div class="stat-icon">✅</div>
+        <span class="material-icons stat-icon">check_circle</span>
         <div class="stat-value">{{ stats.aprobados }}</div>
         <div class="stat-label">Aprobados</div>
         <div class="stat-meta">Promedio ≥ 3.0</div>
       </div>
 
       <div class="stat-card warning">
-        <div class="stat-icon">⚠️</div>
+        <span class="material-icons stat-icon">warning</span>
         <div class="stat-value">{{ stats.reprobados }}</div>
         <div class="stat-label">Reprobados</div>
         <div class="stat-meta">Promedio < 3.0</div>
       </div>
 
       <div class="stat-card info">
-        <div class="stat-icon">📊</div>
+        <span class="material-icons stat-icon">bar_chart</span>
         <div class="stat-value">{{ stats.promedio_general }}</div>
         <div class="stat-label">Promedio General</div>
         <div class="stat-meta">Del grupo</div>
       </div>
 
       <div class="stat-card neutral">
-        <div class="stat-icon">📝</div>
+        <span class="material-icons stat-icon">assignment</span>
         <div class="stat-value">{{ stats.sin_notas }}</div>
         <div class="stat-label">Sin Calificaciones</div>
         <div class="stat-meta">Pendientes</div>
@@ -74,15 +74,15 @@
     <!-- Quick Actions -->
     <section class="quick-actions">
       <button class="action-btn primary" (click)="goToGrades()">
-        <span class="icon">📖</span>
+        <span class="material-icons icon">menu_book</span>
         <span class="text">Registrar Notas</span>
       </button>
       <button class="action-btn secondary" (click)="goToAttendance()">
-        <span class="icon">🗓️</span>
+        <span class="material-icons icon">calendar_month</span>
         <span class="text">Tomar Asistencia</span>
       </button>
       <button class="action-btn tertiary">
-        <span class="icon">📄</span>
+        <span class="material-icons icon">description</span>
         <span class="text">Generar Reporte</span>
       </button>
     </section>
@@ -103,7 +103,7 @@
       </div>
 
       <div *ngIf="students.length === 0" class="empty-state">
-        <div class="empty-icon">📭</div>
+        <span class="material-icons">inbox</span>
         <p>No hay estudiantes matriculados en este grupo</p>
       </div>
 
@@ -147,7 +147,7 @@
             </td>
             <td class="actions">
               <button class="btn-icon" (click)="viewStudentDetail(student)" title="Ver detalles">
-                👁️
+                <span class="material-icons">visibility</span>
               </button>
             </td>
           </tr>

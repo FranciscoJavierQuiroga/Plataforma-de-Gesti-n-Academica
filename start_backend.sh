@@ -1,14 +1,24 @@
 #!/bin/bash
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 echo "🚀 Iniciando servicios backend..."
 
+# Cargar variables de entorno desde .env
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    echo "📋 Cargando variables de entorno..."
+    set -a
+    source "$SCRIPT_DIR/.env"
+    set +a
+fi
+
 # Activar entorno virtual si existe
-if [ -d "backend/.venv" ]; then
-    source backend/.venv/bin/activate
+if [ -d "$SCRIPT_DIR/backend/.venv" ]; then
+    source "$SCRIPT_DIR/backend/.venv/bin/activate"
 fi
 
 # Iniciar servicios en background
-cd backend
+cd "$SCRIPT_DIR/backend"
 
 echo "📡 Iniciando Login Service (puerto 5000)..."
 python login_service/app.py &

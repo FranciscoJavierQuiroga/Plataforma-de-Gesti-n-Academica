@@ -12,10 +12,11 @@
 }
 
 .observations-root {
-  padding: 16px;
+  padding: 20px;
   max-width: 1400px;
   margin: 0 auto;
-  font-family: Inter, Arial, sans-serif;
+  font-family: var(--font-body);
+  animation: fadeInUp 0.6s var(--ease-out) both;
 }
 
 .obs-header h2 {

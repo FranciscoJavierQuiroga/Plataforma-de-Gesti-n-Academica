@@ -364,13 +364,13 @@
     <!-- REPORTS VIEW -->
     <div *ngIf="activeView === 'reports'" class="reports-view">
       <div class="view-header">
-        <h2>📊 Reportes y Estadísticas</h2>
+        <h2><span class="material-icons">assessment</span> Reportes y Estadísticas</h2>
         <p class="subtitle">Visualización de datos académicos del sistema</p>
       </div>
 
       <!-- Selector de Reportes -->
       <div class="reports-selector">
-        <!-- ✅ REPORTE: Estudiantes por Grado -->
+        <!-- REPORTE: Estudiantes por Grado -->
         <button class="report-card" [class.active]="selectedReport === 'students-by-grade'"
           (click)="generateReport('students-by-grade')">
           <span class="material-icons">bar_chart</span>
@@ -378,7 +378,7 @@
           <p>Distribución de estudiantes matriculados en cada grado académico</p>
         </button>
 
-        <!-- ✅ REPORTE: Historial de Matrículas -->
+        <!-- REPORTE: Historial de Matrículas -->
         <button class="report-card" [class.active]="selectedReport === 'enrollment-history'"
           (click)="generateReport('enrollment-history')">
           <span class="material-icons">timeline</span>
@@ -386,7 +386,7 @@
           <p>Evolución de matrículas por periodo académico</p>
         </button>
 
-        <!-- ✅ NUEVO: Ir a Panel Completo de Reportes -->
+        <!-- NUEVO: Ir a Panel Completo de Reportes -->
         <button class="report-card report-card-primary" (click)="goToReports()">
           <span class="material-icons">analytics</span>
           <h3>Panel Completo de Reportes</h3>
@@ -403,7 +403,7 @@
 
       <!-- Report Data: Estudiantes por Grado -->
       <div *ngIf="reportData && selectedReport === 'students-by-grade' && !loadingReport" class="report-content">
-        <h3>📊 Estudiantes por Grado</h3>
+        <h3><span class="material-icons">bar_chart</span> Estudiantes por Grado</h3>
 
         <div class="chart-container">
           <div class="bar-chart">
@@ -446,7 +446,7 @@
 
       <!-- Report Data: Historial de Matrículas -->
       <div *ngIf="reportData && selectedReport === 'enrollment-history' && !loadingReport" class="report-content">
-        <h3>📈 Historial de Matrículas</h3>
+        <h3><span class="material-icons">timeline</span> Historial de Matrículas</h3>
 
         <div class="chart-container">
           <div class="line-chart">

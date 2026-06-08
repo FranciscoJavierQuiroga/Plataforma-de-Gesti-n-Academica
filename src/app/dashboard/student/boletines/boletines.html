@@ -12,7 +12,7 @@
   </div>
 
   <div *ngIf="error" class="alert alert-error">
-    ❌ {{ error }}
+    <span class="material-icons">error_outline</span> {{ error }}
   </div>
 
   <!-- Información del Estudiante -->
@@ -52,8 +52,8 @@
         class="btn-download" 
         (click)="downloadBoletin()" 
         [disabled]="loading">
-        <span *ngIf="!loading">📄 Descargar Boletín PDF</span>
-        <span *ngIf="loading">⏳ Generando PDF...</span>
+        <span *ngIf="!loading"><span class="material-icons">download</span> Descargar Boletín PDF</span>
+        <span *ngIf="loading"><span class="material-icons">hourglass_empty</span> Generando PDF...</span>
       </button>
     </div>
   </div>
@@ -68,7 +68,7 @@
     </div>
 
     <div *ngIf="getCursosDelPeriodo().length === 0" class="empty-state">
-      <div class="empty-icon">📚</div>
+      <div class="empty-icon"><span class="material-icons">library_books</span></div>
       <p>No hay cursos registrados para este periodo</p>
     </div>
 
@@ -120,7 +120,7 @@
         <button 
           class="btn-secondary" 
           (click)="periodoSeleccionado = p; downloadBoletin()">
-          📥 Descargar
+          <span class="material-icons">download</span> Descargar
         </button>
       </div>
     </div>

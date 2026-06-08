@@ -142,7 +142,7 @@ describe('TeacherComponent', () => {
       alertService.confirm.mockResolvedValue(true);
       await component.logout();
       
-      expect(alertService.success).toHaveBeenCalledWith('Sesión cerrada exitosamente', '👋 Hasta pronto');
+      expect(alertService.success).toHaveBeenCalledWith('Sesión cerrada exitosamente', 'Hasta pronto');
     });
 
     it('should navigate to login when confirmed', async () => {

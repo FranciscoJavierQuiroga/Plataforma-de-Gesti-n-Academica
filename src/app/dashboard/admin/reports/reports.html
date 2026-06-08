@@ -5,7 +5,7 @@
       <span class="material-icons">arrow_back</span>
     </button>
     <div>
-      <h1>📊 Panel de Reportes</h1>
+      <h1><span class="material-icons">bar_chart</span> Panel de Reportes</h1>
       <p class="subtitle">Visualización de estadísticas académicas con gráficas interactivas</p>
     </div>
   </header>
@@ -54,7 +54,7 @@
     </div>
 
     <div class="results-content">
-      <!-- ✅ CANVAS PARA LA GRÁFICA -->
+      <!-- CANVAS PARA LA GRÁFICA -->
       <div class="chart-container">
         <canvas #chartCanvas></canvas>
       </div>
@@ -76,7 +76,7 @@
               </tr>
             </thead>
             <tbody>
-              <!-- ✅ USAR reportData.report EN LUGAR DE reportData.data -->
+              <!-- USAR reportData.report EN LUGAR DE reportData.data -->
               <tr *ngFor="let item of reportData.report">
                 <td>Grado {{ item._id }}</td>
                 <td class="number">{{ item.total_estudiantes }}</td>
@@ -98,7 +98,7 @@
               </tr>
             </thead>
             <tbody>
-              <!-- ✅ USAR reportData.report CON LOS CAMPOS CORRECTOS -->
+              <!-- USAR reportData.report CON LOS CAMPOS CORRECTOS -->
               <tr *ngFor="let item of reportData.report">
                 <td>{{ item.nombre_curso }}</td>
                 <td>{{ item.codigo_curso }}</td>
@@ -121,7 +121,7 @@
               </tr>
             </thead>
             <tbody>
-              <!-- ✅ USAR reportData.report -->
+              <!-- USAR reportData.report -->
               <tr *ngFor="let item of reportData.report">
                 <td>{{ item.nombre_docente }}</td>
                 <td class="number">{{ item.total_cursos }}</td>
@@ -141,7 +141,7 @@
               </tr>
             </thead>
             <tbody>
-              <!-- ✅ USAR reportData.report -->
+              <!-- USAR reportData.report -->
               <tr *ngFor="let item of reportData.report">
                 <td>Periodo {{ item.periodo || item._id }}</td>
                 <td class="number">{{ item.total_matriculas || item.total }}</td>
@@ -156,7 +156,7 @@
             <span class="material-icons">school</span>
             <div>
               <p class="stat-label">Estudiantes</p>
-              <!-- ✅ ACCEDER CORRECTAMENTE -->
+              <!-- ACCEDER CORRECTAMENTE -->
               <p class="stat-value">{{ reportData.statistics?.estudiantes?.activos || reportData.total_estudiantes || 0
                 }}</p>
             </div>

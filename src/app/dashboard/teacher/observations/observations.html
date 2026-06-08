@@ -8,32 +8,32 @@
 
   <!-- Mensajes de éxito/error -->
   <div *ngIf="successMessage" class="alert alert-success">
-    ✅ {{ successMessage }}
+    <span class="material-icons">check</span> {{ successMessage }}
   </div>
 
   <div *ngIf="error" class="alert alert-error">
-    ❌ {{ error }}
+    <span class="material-icons">close</span> {{ error }}
   </div>
 
   <!-- Resumen -->
   <div class="summary card">
     <div class="summary-item">
-      <div class="icon">📊</div>
+      <span class="material-icons">bar_chart</span>
       <div class="value">{{ resumen.total }}</div>
       <div class="label">Total</div>
     </div>
     <div class="summary-item success">
-      <div class="icon">😊</div>
+      <span class="material-icons">sentiment_satisfied</span>
       <div class="value">{{ resumen.positivas }}</div>
       <div class="label">Positivas</div>
     </div>
     <div class="summary-item danger">
-      <div class="icon">⚠️</div>
+      <span class="material-icons">warning</span>
       <div class="value">{{ resumen.negativas }}</div>
       <div class="label">Negativas</div>
     </div>
     <div class="summary-item neutral">
-      <div class="icon">ℹ️</div>
+      <span class="material-icons">info</span>
       <div class="value">{{ resumen.neutrales }}</div>
       <div class="label">Neutrales</div>
     </div>
@@ -61,7 +61,7 @@
       <option value="participacion">Participación</option>
       <option value="otra">Otra</option>
     </select>
-    <button class="btn-primary" (click)="nuevaObservacion()">➕ Nueva Observación</button>
+    <button class="btn-primary" (click)="nuevaObservacion()"><span class="material-icons">add</span> Nueva Observación</button>
   </div>
 
   <!-- Loading State -->
@@ -76,7 +76,7 @@
     <div class="list-sub">{{ observacionesFiltradas.length }} observación(es) encontrada(s)</div>
 
     <div *ngIf="observacionesFiltradas.length === 0 && !loading" class="empty-state">
-      <div class="empty-icon">📋</div>
+      <span class="material-icons">list</span>
       <p>No hay observaciones registradas</p>
       <button class="btn-primary" (click)="nuevaObservacion()">Crear Primera Observación</button>
     </div>
@@ -112,8 +112,8 @@
           <td class="descripcion">{{ o.descripcion }}</td>
           <td class="seguimiento">{{ o.seguimiento || '—' }}</td>
           <td class="acciones">
-            <button class="btn-icon edit" (click)="editar(o)" title="Editar">✎</button>
-            <button class="btn-icon delete" (click)="eliminar(o)" title="Eliminar">🗑</button>
+            <button class="btn-icon edit" (click)="editar(o)" title="Editar"><span class="material-icons">edit</span></button>
+            <button class="btn-icon delete" (click)="eliminar(o)" title="Eliminar"><span class="material-icons">delete</span></button>
           </td>
         </tr>
       </tbody>
@@ -125,7 +125,7 @@
     <div class="modal-content" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h3>{{ editandoId ? 'Editar Observación' : 'Nueva Observación' }}</h3>
-        <button class="close-btn" (click)="cerrarModal()">✕</button>
+        <button class="close-btn" (click)="cerrarModal()"><span class="material-icons">close</span></button>
       </div>
 
       <div class="modal-body">
@@ -146,7 +146,7 @@
             <option value="">Seleccionar grupo</option>
             <option *ngFor="let g of grupos" [value]="g._id">{{ g.name }}</option>
           </select>
-          <!-- ✅ AGREGAR MENSAJE SI NO HAY ESTUDIANTES -->
+          <!-- AGREGAR MENSAJE SI NO HAY ESTUDIANTES -->
           <small *ngIf="estudiantes.length === 0 && nuevaObs.course_id" class="text-muted">
             No hay estudiantes en este grupo
           </small>
@@ -159,9 +159,9 @@
           <div class="form-group">
             <label>Tipo *</label>
             <select [(ngModel)]="nuevaObs.tipo">
-              <option value="positiva">😊 Positiva</option>
-              <option value="negativa">⚠️ Negativa</option>
-              <option value="neutral">ℹ️ Neutral</option>
+              <option value="positiva"><span class="material-icons">sentiment_satisfied</span> Positiva</option>
+              <option value="negativa"><span class="material-icons">warning</span> Negativa</option>
+              <option value="neutral"><span class="material-icons">info</span> Neutral</option>
             </select>
           </div>
 

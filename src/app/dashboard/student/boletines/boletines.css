@@ -1,31 +1,30 @@
 .back {
   display: inline-block;
   margin: 12px 0;
-  color: #2b6a4a;
+  color: var(--color-secondary);
   text-decoration: none;
   font-weight: 600;
-  transition: color 0.2s;
+  transition: var(--transition-normal);
 }
 
 .back:hover {
-  color: #0b6b3a;
+  color: var(--color-primary);
 }
 
 .boletines-root {
   padding: 16px;
   max-width: 1200px;
   margin: 0 auto;
-  font-family: Inter, Arial, sans-serif;
 }
 
 .header h2 {
   margin: 0;
-  color: #0b6b3a;
+  color: var(--color-primary);
   font-size: 24px;
 }
 
 .header .hint {
-  color: #666;
+  color: var(--color-text-muted);
   margin-top: 6px;
   font-size: 14px;
 }
@@ -33,37 +32,38 @@
 /* Alertas */
 .alert {
   padding: 12px 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   margin: 16px 0;
   font-weight: 600;
 }
 
 .alert-success {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
+  background: var(--color-success-bg);
+  color: var(--success);
+  border: 1px solid var(--color-success-bg);
 }
 
 .alert-error {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  background: var(--color-error-bg);
+  color: var(--error);
+  border: 1px solid var(--color-error-bg);
 }
 
 /* Cards */
 .card {
-  background: #fff;
-  border: 1px solid #e6f0ea;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--color-border);
   padding: 20px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   margin-bottom: 16px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 /* Información del Estudiante */
 .student-info {
-  background: linear-gradient(135deg, #f8fbf9 0%, #eef7ef 100%);
-  border-color: #d7e7df;
+  background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-primary-light) 100%);
+  border-color: var(--color-border);
 }
 
 .info-row {
@@ -80,14 +80,14 @@
 
 .info-item .label {
   font-size: 12px;
-  color: #666;
+  color: var(--color-text-muted);
   text-transform: uppercase;
   font-weight: 600;
 }
 
 .info-item .value {
   font-size: 16px;
-  color: #0b6b3a;
+  color: var(--color-primary);
   font-weight: 700;
 }
 
@@ -101,21 +101,21 @@
 
 .section-header h3 {
   margin: 0;
-  color: #0b6b3a;
+  color: var(--color-primary);
   font-size: 18px;
 }
 
 .section-hint {
   font-size: 13px;
-  color: #999;
+  color: var(--color-text-muted);
   margin-top: 4px;
 }
 
 .average-badge {
-  background: #0b6b3a;
+  background: var(--color-primary);
   color: #fff;
   padding: 8px 16px;
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   font-size: 14px;
 }
 
@@ -139,42 +139,42 @@
 
 .form-group label {
   font-weight: 600;
-  color: #333;
+  color: var(--color-text);
   font-size: 14px;
 }
 
 .form-group select {
   padding: 10px 12px;
-  border: 1px solid #d7e7df;
-  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   font-size: 14px;
-  background: #fff;
+  background: var(--surface-card);
   cursor: pointer;
-  transition: border-color 0.2s;
+  transition: var(--transition-normal);
 }
 
 .form-group select:focus {
   outline: none;
-  border-color: #0b6b3a;
+  border-color: var(--color-primary);
 }
 
 .btn-download {
-  background: #0b6b3a;
+  background: var(--color-primary);
   color: #fff;
   border: none;
   padding: 12px 24px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: var(--transition-normal);
   white-space: nowrap;
   font-size: 14px;
 }
 
 .btn-download:hover:not(:disabled) {
-  background: #095530;
+  background: var(--primary-hover);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(11, 107, 58, 0.3);
+  box-shadow: var(--shadow-md);
 }
 
 .btn-download:disabled {
@@ -186,7 +186,7 @@
 .empty-state {
   text-align: center;
   padding: 60px 20px;
-  color: #999;
+  color: var(--color-text-muted);
 }
 
 .empty-state .empty-icon {
@@ -202,42 +202,42 @@
 }
 
 .table thead {
-  background: #f8fbf9;
+  background: var(--color-surface);
 }
 
 .table th {
   padding: 12px;
   text-align: left;
   font-weight: 600;
-  color: #0b6b3a;
-  border-bottom: 2px solid #e6f0ea;
+  color: var(--color-primary);
+  border-bottom: 2px solid var(--color-border);
   font-size: 13px;
   text-transform: uppercase;
 }
 
 .table td {
   padding: 12px;
-  border-bottom: 1px solid #f0f7f3;
+  border-bottom: 1px solid var(--color-border);
   font-size: 14px;
 }
 
 .table tr:hover {
-  background: #f8fbf9;
+  background: var(--color-surface);
 }
 
 .curso-nombre {
   font-weight: 600;
-  color: #183c35;
+  color: var(--color-text);
 }
 
 .curso-codigo {
   font-family: 'Courier New', monospace;
-  color: #666;
+  color: var(--color-text-muted);
   font-size: 13px;
 }
 
 .docente {
-  color: #555;
+  color: var(--color-text-muted);
 }
 
 .promedio {
@@ -247,38 +247,38 @@
 .nota {
   display: inline-block;
   padding: 6px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-weight: 700;
   font-size: 16px;
 }
 
 .nota.aprobado {
-  background: #d4edda;
-  color: #155724;
+  background: var(--color-success-bg);
+  color: var(--success);
 }
 
 .nota.reprobado {
-  background: #f8d7da;
-  color: #721c24;
+  background: var(--color-error-bg);
+  color: var(--error);
 }
 
 .chip {
   display: inline-block;
   padding: 4px 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
 }
 
 .chip.aprobado {
-  background: #d4edda;
-  color: #155724;
+  background: var(--color-success-bg);
+  color: var(--success);
 }
 
 .chip.reprobado {
-  background: #f8d7da;
-  color: #721c24;
+  background: var(--color-error-bg);
+  color: var(--error);
 }
 
 /* Historial */
@@ -292,37 +292,37 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  background: #f8fbf9;
-  border-radius: 8px;
-  border: 1px solid #e6f0ea;
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
 }
 
 .history-title {
   font-weight: 600;
-  color: #0b6b3a;
+  color: var(--color-primary);
 }
 
 .history-meta {
   font-size: 13px;
-  color: #666;
+  color: var(--color-text-muted);
   margin-top: 4px;
 }
 
 .btn-secondary {
-  background: #fff;
-  color: #0b6b3a;
-  border: 1px solid #d7e7df;
+  background: var(--surface-card);
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
   padding: 8px 16px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: var(--transition-normal);
   font-size: 13px;
 }
 
 .btn-secondary:hover {
-  background: #f0f7f3;
-  border-color: #0b6b3a;
+  background: var(--color-border);
+  border-color: var(--color-primary);
 }
 
 /* Responsive */

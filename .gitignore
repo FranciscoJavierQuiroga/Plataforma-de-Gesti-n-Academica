@@ -67,3 +67,5 @@ __pycache__/
 # Build outputs and local testing
 dist/
 build/
+
+.env

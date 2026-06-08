@@ -173,219 +173,366 @@ export class ReportsComponent implements OnInit {
   }
 
   createStudentsByGradeChart(): ChartConfiguration {
-  // ✅ Mapear correctamente los datos del backend
-  const reportArray = this.reportData.report || [];
-  
-  return {
-    type: 'bar',
-    data: {
-      labels: reportArray.map((item: any) => `Grado ${item._id}`),  // ✅ Usar _id en lugar de grado
-      datasets: [{
-        label: 'Cantidad de Estudiantes',
-        data: reportArray.map((item: any) => item.total_estudiantes),  // ✅ Usar total_estudiantes
-        backgroundColor: 'rgba(11, 107, 58, 0.7)',
-        borderColor: 'rgba(11, 107, 58, 1)',
-        borderWidth: 2,
-        borderRadius: 8
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        title: {
-          display: true,
-          text: 'Distribución de Estudiantes por Grado',
-          font: { size: 18, weight: 'bold' },
-          color: '#0b6b3a'
-        }
+    const reportArray = this.reportData.report || [];
+    const colors = reportArray.map((_: any, i: number) => {
+      const hues = ['#0b6b3a', '#0d8545', '#2b8b5a', '#3da66c', '#4db87d', '#5eca8e'];
+      return hues[i % hues.length];
+    });
+    const borderColors = reportArray.map((_: any, i: number) => {
+      const hues = ['#05341d', '#0b6b3a', '#0d8545', '#2b8b5a', '#3da66c', '#4db87d'];
+      return hues[i % hues.length];
+    });
+
+    return {
+      type: 'bar',
+      data: {
+        labels: reportArray.map((item: any) => `Grado ${item._id}`),
+        datasets: [{
+          label: 'Cantidad de Estudiantes',
+          data: reportArray.map((item: any) => item.total_estudiantes),
+          backgroundColor: colors,
+          borderColor: borderColors,
+          borderWidth: 2,
+          borderRadius: 8,
+          borderSkipped: false
+        }]
       },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: { stepSize: 1 }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+          duration: 800,
+          easing: 'easeOutQuart'
+        },
+        plugins: {
+          legend: { display: false },
+          title: {
+            display: true,
+            text: 'Distribución de Estudiantes por Grado',
+            font: { size: 18, weight: 'bold', family: "'Plus Jakarta Sans', sans-serif" },
+            color: '#0b6b3a',
+            padding: { bottom: 20 }
+          },
+          tooltip: {
+            backgroundColor: '#05341d',
+            titleFont: { family: "'Plus Jakarta Sans', sans-serif", size: 14 },
+            bodyFont: { family: "'Plus Jakarta Sans', sans-serif", size: 13 },
+            padding: 12,
+            cornerRadius: 8,
+            displayColors: false,
+            callbacks: {
+              label: (context: any) => `${context.parsed.y} estudiantes`
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1, font: { family: "'Plus Jakarta Sans', sans-serif" } },
+            grid: { color: 'rgba(11, 107, 58, 0.08)' }
+          },
+          x: {
+            ticks: { font: { family: "'Plus Jakarta Sans', sans-serif", weight: 'bold' } },
+            grid: { display: false }
+          }
         }
       }
-    }
-  };
-}
+    };
+  }
 
 createPerformanceByCourseChart(): ChartConfiguration {
-  // ✅ Mapear correctamente los datos del backend
-  const reportArray = this.reportData.report || [];
-  
-  return {
-    type: 'bar',
-    data: {
-      labels: reportArray.map((item: any) => item.nombre_curso || 'Sin nombre'),  // ✅ Verificar que exista
-      datasets: [{
-        label: 'Promedio',
-        data: reportArray.map((item: any) => item.promedio || 0),  // ✅ Usar promedio_curso
-        backgroundColor: 'rgba(43, 139, 90, 0.7)',
-        borderColor: 'rgba(43, 139, 90, 1)',
-        borderWidth: 2,
-        borderRadius: 8
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        title: {
-          display: true,
-          text: 'Promedio de Calificaciones por Curso',
-          font: { size: 18, weight: 'bold' },
-          color: '#0b6b3a'
-        }
+    const reportArray = this.reportData.report || [];
+
+    const getColor = (value: number) => {
+      if (value >= 4.0) return '#0b6b3a';
+      if (value >= 3.0) return '#c9972e';
+      return '#c0392b';
+    };
+    const getBgColor = (value: number) => {
+      if (value >= 4.0) return 'rgba(11, 107, 58, 0.75)';
+      if (value >= 3.0) return 'rgba(201, 151, 46, 0.75)';
+      return 'rgba(192, 57, 43, 0.75)';
+    };
+
+    const data = reportArray.map((item: any) => item.promedio || 0);
+
+    return {
+      type: 'bar',
+      data: {
+        labels: reportArray.map((item: any) => item.nombre_curso || 'Sin nombre'),
+        datasets: [{
+          label: 'Promedio',
+          data: data,
+          backgroundColor: data.map((v: number) => getBgColor(v)),
+          borderColor: data.map((v: number) => getColor(v)),
+          borderWidth: 2,
+          borderRadius: 8,
+          borderSkipped: false
+        }]
       },
-      scales: {
-        y: {
-          beginAtZero: true,
-          max: 5,
-          ticks: { stepSize: 0.5 }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+          duration: 800,
+          easing: 'easeOutQuart'
+        },
+        plugins: {
+          legend: { display: false },
+          title: {
+            display: true,
+            text: 'Promedio de Calificaciones por Curso',
+            font: { size: 18, weight: 'bold', family: "'Plus Jakarta Sans', sans-serif" },
+            color: '#0b6b3a',
+            padding: { bottom: 20 }
+          },
+          tooltip: {
+            backgroundColor: '#05341d',
+            titleFont: { family: "'Plus Jakarta Sans', sans-serif", size: 14 },
+            bodyFont: { family: "'Plus Jakarta Sans', sans-serif", size: 13 },
+            padding: 12,
+            cornerRadius: 8,
+            displayColors: false,
+            callbacks: {
+              label: (context: any) => `Promedio: ${context.parsed.y.toFixed(2)}`
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 5,
+            ticks: { stepSize: 0.5, font: { family: "'Plus Jakarta Sans', sans-serif" } },
+            grid: { color: 'rgba(11, 107, 58, 0.08)' }
+          },
+          x: {
+            ticks: { font: { family: "'Plus Jakarta Sans', sans-serif", weight: 'bold' } },
+            grid: { display: false }
+          }
         }
       }
-    }
-  };
-}
+    };
+  }
 
 createTeacherWorkloadChart(): ChartConfiguration {
-  // ✅ Mapear correctamente los datos del backend
-  const reportArray = this.reportData.report || [];
-  
-  return {
-    type: 'bar',
-    data: {
-      labels: reportArray.map((item: any) => item.nombre_docente || 'Sin nombre'),
-      datasets: [
-        {
-          label: 'Cursos',
-          data: reportArray.map((item: any) => item.total_cursos || 0),
-          backgroundColor: 'rgba(11, 107, 58, 0.7)',
-          borderColor: 'rgba(11, 107, 58, 1)',
-          borderWidth: 2,
-          borderRadius: 8
-        },
-        {
-          label: 'Estudiantes',
-          data: reportArray.map((item: any) => item.total_estudiantes || 0),
-          backgroundColor: 'rgba(43, 139, 90, 0.7)',
-          borderColor: 'rgba(43, 139, 90, 1)',
-          borderWidth: 2,
-          borderRadius: 8
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: true, position: 'top' },
-        title: {
-          display: true,
-          text: 'Carga Académica por Docente',
-          font: { size: 18, weight: 'bold' },
-          color: '#0b6b3a'
-        }
+    const reportArray = this.reportData.report || [];
+
+    return {
+      type: 'bar',
+      data: {
+        labels: reportArray.map((item: any) => item.nombre_docente || 'Sin nombre'),
+        datasets: [
+          {
+            label: 'Cursos',
+            data: reportArray.map((item: any) => item.total_cursos || 0),
+            backgroundColor: 'rgba(11, 107, 58, 0.8)',
+            borderColor: '#0b6b3a',
+            borderWidth: 2,
+            borderRadius: 6,
+            borderSkipped: false
+          },
+          {
+            label: 'Estudiantes',
+            data: reportArray.map((item: any) => item.total_estudiantes || 0),
+            backgroundColor: 'rgba(201, 151, 46, 0.8)',
+            borderColor: '#c9972e',
+            borderWidth: 2,
+            borderRadius: 6,
+            borderSkipped: false
+          }
+        ]
       },
-      scales: {
-        y: { beginAtZero: true }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+          duration: 800,
+          easing: 'easeOutQuart'
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            labels: {
+              font: { family: "'Plus Jakarta Sans', sans-serif", size: 13 },
+              usePointStyle: true,
+              pointStyle: 'circle',
+              padding: 20
+            }
+          },
+          title: {
+            display: true,
+            text: 'Carga Académica por Docente',
+            font: { size: 18, weight: 'bold', family: "'Plus Jakarta Sans', sans-serif" },
+            color: '#0b6b3a',
+            padding: { bottom: 20 }
+          },
+          tooltip: {
+            backgroundColor: '#05341d',
+            titleFont: { family: "'Plus Jakarta Sans', sans-serif", size: 14 },
+            bodyFont: { family: "'Plus Jakarta Sans', sans-serif", size: 13 },
+            padding: 12,
+            cornerRadius: 8
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { font: { family: "'Plus Jakarta Sans', sans-serif" } },
+            grid: { color: 'rgba(11, 107, 58, 0.08)' }
+          },
+          x: {
+            ticks: { font: { family: "'Plus Jakarta Sans', sans-serif", weight: 'bold' } },
+            grid: { display: false }
+          }
+        }
       }
-    }
-  };
-}
+    };
+  }
 
 createEnrollmentHistoryChart(): ChartConfiguration {
-  // ✅ Mapear correctamente los datos del backend
-  const reportArray = this.reportData.report || [];
-  
-  return {
-    type: 'line',
-    data: {
-      labels: reportArray.map((item: any) => `Periodo ${item.periodo || item._id}`),
-      datasets: [{
-        label: 'Matrículas',
-        data: reportArray.map((item: any) => item.total_matriculas || item.total || 0),
-        backgroundColor: 'rgba(11, 107, 58, 0.2)',
-        borderColor: 'rgba(11, 107, 58, 1)',
-        borderWidth: 3,
-        fill: true,
-        tension: 0.4,
-        pointRadius: 6,
-        pointBackgroundColor: 'rgba(11, 107, 58, 1)',
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        title: {
-          display: true,
-          text: 'Evolución de Matrículas por Periodo',
-          font: { size: 18, weight: 'bold' },
-          color: '#0b6b3a'
-        }
+    const reportArray = this.reportData.report || [];
+
+    return {
+      type: 'line',
+      data: {
+        labels: reportArray.map((item: any) => `Periodo ${item.periodo || item._id}`),
+        datasets: [{
+          label: 'Matrículas',
+          data: reportArray.map((item: any) => item.total_matriculas || item.total || 0),
+          backgroundColor: (ctx: any) => {
+            const canvas = ctx.chart.ctx;
+            const gradient = canvas.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(11, 107, 58, 0.25)');
+            gradient.addColorStop(1, 'rgba(11, 107, 58, 0.02)');
+            return gradient;
+          },
+          borderColor: '#0b6b3a',
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 6,
+          pointBackgroundColor: '#0b6b3a',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 3,
+          pointHoverRadius: 8,
+          pointHoverBackgroundColor: '#0d8545',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 3
+        }]
       },
-      scales: {
-        y: { beginAtZero: true }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+          duration: 1000,
+          easing: 'easeOutQuart'
+        },
+        plugins: {
+          legend: { display: false },
+          title: {
+            display: true,
+            text: 'Evolución de Matrículas por Periodo',
+            font: { size: 18, weight: 'bold', family: "'Plus Jakarta Sans', sans-serif" },
+            color: '#0b6b3a',
+            padding: { bottom: 20 }
+          },
+          tooltip: {
+            backgroundColor: '#05341d',
+            titleFont: { family: "'Plus Jakarta Sans', sans-serif", size: 14 },
+            bodyFont: { family: "'Plus Jakarta Sans', sans-serif", size: 13 },
+            padding: 12,
+            cornerRadius: 8,
+            displayColors: false,
+            callbacks: {
+              label: (context: any) => `${context.parsed.y} matrículas`
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { font: { family: "'Plus Jakarta Sans', sans-serif" } },
+            grid: { color: 'rgba(11, 107, 58, 0.08)' }
+          },
+          x: {
+            ticks: { font: { family: "'Plus Jakarta Sans', sans-serif", weight: 'bold' } },
+            grid: { display: false }
+          }
+        }
       }
-    }
-  };
-}
+    };
+  }
 
 createAcademicStatisticsChart(): ChartConfiguration {
-  // ✅ Acceder correctamente a las estadísticas
-  const stats = this.reportData.statistics || this.reportData;
-  
-  return {
-    type: 'doughnut',
-    data: {
-      labels: ['Estudiantes', 'Docentes', 'Cursos', 'Matrículas'],
-      datasets: [{
-        data: [
-          stats.total_estudiantes || stats.estudiantes?.activos || 0,
-          stats.total_docentes || stats.docentes?.activos || 0,
-          stats.total_cursos || stats.cursos?.activos || 0,
-          stats.total_matriculas || stats.matriculas?.activas || 0
-        ],
-        backgroundColor: [
-          'rgba(11, 107, 58, 0.8)',
-          'rgba(43, 139, 90, 0.8)',
-          'rgba(76, 175, 80, 0.8)',
-          'rgba(129, 199, 132, 0.8)'
-        ],
-        borderColor: [
-          'rgba(11, 107, 58, 1)',
-          'rgba(43, 139, 90, 1)',
-          'rgba(76, 175, 80, 1)',
-          'rgba(129, 199, 132, 1)'
-        ],
-        borderWidth: 2
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: true,
-          position: 'right'
+    const stats = this.reportData.statistics || this.reportData;
+    const data = [
+      stats.total_estudiantes || stats.estudiantes?.activos || 0,
+      stats.total_docentes || stats.docentes?.activos || 0,
+      stats.total_cursos || stats.cursos?.activos || 0,
+      stats.total_matriculas || stats.matriculas?.activas || 0
+    ];
+
+    return {
+      type: 'doughnut',
+      data: {
+        labels: ['Estudiantes', 'Docentes', 'Cursos', 'Matrículas'],
+        datasets: [{
+          data: data,
+          backgroundColor: [
+            '#0b6b3a',
+            '#0d8545',
+            '#2b8b5a',
+            '#c9972e'
+          ],
+          borderColor: '#ffffff',
+          borderWidth: 3,
+          hoverOffset: 12
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+          duration: 1000,
+          easing: 'easeOutQuart'
         },
-        title: {
-          display: true,
-          text: 'Estadísticas Académicas Generales',
-          font: { size: 18, weight: 'bold' },
-          color: '#0b6b3a'
+        plugins: {
+          legend: {
+            display: true,
+            position: 'right',
+            labels: {
+              font: { family: "'Plus Jakarta Sans', sans-serif", size: 13 },
+              padding: 20,
+              usePointStyle: true,
+              pointStyle: 'circle'
+            }
+          },
+          title: {
+            display: true,
+            text: 'Estadísticas Académicas Generales',
+            font: { size: 18, weight: 'bold', family: "'Plus Jakarta Sans', sans-serif" },
+            color: '#0b6b3a',
+            padding: { bottom: 20 }
+          },
+          tooltip: {
+            backgroundColor: '#05341d',
+            titleFont: { family: "'Plus Jakarta Sans', sans-serif", size: 14 },
+            bodyFont: { family: "'Plus Jakarta Sans', sans-serif", size: 13 },
+            padding: 12,
+            cornerRadius: 8,
+            callbacks: {
+              label: (context: any) => {
+                const total = data.reduce((a: number, b: number) => a + b, 0);
+                const pct = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : '0.0';
+                return `${context.label}: ${context.parsed} (${pct}%)`;
+              }
+            }
+          }
         }
       }
-    }
-  };
-}
+    };
+  }
   downloadPDF(report: Report): void {
     alert(`Descarga de PDF para "${report.title}" en desarrollo.\n\nEn producción se generará un PDF con la gráfica.`);
   }

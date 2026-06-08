@@ -216,7 +216,7 @@ describe('CertificadosComponent', () => {
       
       expect(component.loadingCertificado).toBeNull();
       expect(component.error).toBe('Error generating certificado');
-      expect(consoleErrorSpy).toHaveBeenCalledWith('❌ Error al descargar certificado:', expect.any(Object));
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Error al descargar certificado:', expect.any(Object));
       consoleErrorSpy.mockRestore();
     }));
 

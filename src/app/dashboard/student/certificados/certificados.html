@@ -12,7 +12,7 @@
   </div>
 
   <div *ngIf="error" class="alert alert-error">
-    ❌ {{ error }}
+    <span class="material-icons">error_outline</span> {{ error }}
   </div>
 
   <!-- Información del Estudiante -->
@@ -40,7 +40,7 @@
 
   <!-- Instrucciones -->
   <div class="card instructions">
-    <h3>ℹ️ Instrucciones de Descarga</h3>
+    <h3><span class="material-icons">info</span> Instrucciones de Descarga</h3>
     <ol>
       <li>Selecciona el tipo de certificado que necesitas</li>
       <li>Haz clic en el botón "Descargar PDF"</li>
@@ -57,7 +57,7 @@
   <div class="certificados-grid">
     <div class="certificado-card card" *ngFor="let cert of certificados">
       <div class="certificado-header">
-        <div class="certificado-icon">{{ cert.icon }}</div>
+        <div class="certificado-icon"><span class="material-icons">{{ cert.icon }}</span></div>
         <div class="certificado-badge" *ngIf="cert.disponible">Disponible</div>
         <div class="certificado-badge unavailable" *ngIf="!cert.disponible">No Disponible</div>
       </div>
@@ -72,8 +72,8 @@
           class="btn-download" 
           [disabled]="!cert.disponible || isLoading(cert.id)"
           (click)="descargarCertificado(cert.id)">
-          <span *ngIf="!isLoading(cert.id)">📥 Descargar PDF</span>
-          <span *ngIf="isLoading(cert.id)">⏳ Generando...</span>
+          <span *ngIf="!isLoading(cert.id)"><span class="material-icons">download</span> Descargar PDF</span>
+          <span *ngIf="isLoading(cert.id)"><span class="material-icons">hourglass_empty</span> Generando...</span>
         </button>
       </div>
     </div>
@@ -81,24 +81,24 @@
 
   <!-- Información Adicional -->
   <div class="card info-adicional">
-    <h3>📌 Información Adicional</h3>
+    <h3><span class="material-icons">info</span> Información Adicional</h3>
     <div class="info-grid">
       <div class="info-item">
-        <div class="info-icon">🕒</div>
+        <div class="info-icon"><span class="material-icons">schedule</span></div>
         <div class="info-content">
           <strong>Tiempo de Generación</strong>
           <p>Los certificados se generan instantáneamente al hacer clic en descargar</p>
         </div>
       </div>
       <div class="info-item">
-        <div class="info-icon">🔒</div>
+        <div class="info-icon"><span class="material-icons">lock</span></div>
         <div class="info-content">
           <strong>Seguridad</strong>
           <p>Todos los certificados incluyen firma digital y código de verificación</p>
         </div>
       </div>
       <div class="info-item">
-        <div class="info-icon">📧</div>
+        <div class="info-icon"><span class="material-icons">email</span></div>
         <div class="info-content">
           <strong>¿Necesitas Ayuda?</strong>
           <p>Contacta a secretaría académica: secretaria@colegio.edu</p>

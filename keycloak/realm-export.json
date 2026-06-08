@@ -1,0 +1,340 @@
+{
+  "id": "plataformaInstitucional",
+  "realm": "plataformaInstitucional",
+  "displayName": "Plataforma Institucional",
+  "notBefore": 0,
+  "defaultSignatureAlgorithm": "RS256",
+  "revokeRefreshToken": false,
+  "refreshTokenMaxReuse": 0,
+  "accessTokenLifespan": 300,
+  "accessTokenLifespanForImplicitFlow": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "ssoSessionIdleTimeoutRememberMe": 0,
+  "ssoSessionMaxLifespanRememberMe": 0,
+  "offlineSessionIdleTimeout": 2592000,
+  "offlineSessionMaxLifespanEnabled": false,
+  "offlineSessionMaxLifespan": 5184000,
+  "clientSessionIdleTimeout": 0,
+  "clientSessionMaxLifespan": 0,
+  "clientOfflineSessionIdleTimeout": 0,
+  "clientOfflineSessionMaxLifespan": 0,
+  "accessCodeLifespan": 60,
+  "accessCodeLifespanUserAction": 300,
+  "accessCodeLifespanLogin": 1800,
+  "actionTokenGeneratedByAdminLifespan": 43200,
+  "actionTokenGeneratedByUserLifespan": 300,
+  "oauth2DeviceCodeLifespan": 600,
+  "oauth2DevicePollingInterval": 5,
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "registrationEmailAsUsername": false,
+  "rememberMe": false,
+  "verifyEmail": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": false,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "maxDeltaTimeSeconds": 300,
+  "failureFactor": 30,
+  "roles": {
+    "realm": [
+      {
+        "id": "role-admin",
+        "name": "administrador",
+        "description": "Administrador del sistema",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "plataformaInstitucional"
+      },
+      {
+        "id": "role-docente",
+        "name": "docente",
+        "description": "Docente de la institución",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "plataformaInstitucional"
+      },
+      {
+        "id": "role-estudiante",
+        "name": "estudiante",
+        "description": "Estudiante matriculado",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "plataformaInstitucional"
+      }
+    ],
+    "client": {
+      "01": [
+        {
+          "id": "client-role-admin",
+          "name": "administrador",
+          "description": "Administrador del sistema",
+          "composite": false,
+          "clientRole": true,
+          "containerId": "01"
+        },
+        {
+          "id": "client-role-docente",
+          "name": "docente",
+          "description": "Docente de la institución",
+          "composite": false,
+          "clientRole": true,
+          "containerId": "01"
+        },
+        {
+          "id": "client-role-estudiante",
+          "name": "estudiante",
+          "description": "Estudiante matriculado",
+          "composite": false,
+          "clientRole": true,
+          "containerId": "01"
+        }
+      ]
+    }
+  },
+  "groups": [],
+  "defaultRole": {
+    "id": "role-default",
+    "name": "default-roles-plataformainstitucional",
+    "description": "${role_default-roles}",
+    "composite": false,
+    "clientRole": false,
+    "containerId": "plataformaInstitucional"
+  },
+  "requiredCredentials": [
+    "password"
+  ],
+  "passwordPolicy": "hashIterations(27500)",
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyInitialCounter": 0,
+  "otpPolicyDigits": 6,
+  "otpPolicyLookAheadWindow": 1,
+  "otpPolicyPeriod": 30,
+  "users": [
+    {
+      "id": "user-admin",
+      "username": "admin",
+      "enabled": true,
+      "email": "admin@portico.edu",
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "Sistema",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "administrador"
+      ],
+      "clientRoles": {
+        "01": [
+          "administrador"
+        ]
+      }
+    },
+    {
+      "id": "user-docente",
+      "username": "profesor",
+      "enabled": true,
+      "email": "profesor@portico.edu",
+      "emailVerified": true,
+      "firstName": "Juan",
+      "lastName": "Pérez",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "profesor123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "docente"
+      ],
+      "clientRoles": {
+        "01": [
+          "docente"
+        ]
+      }
+    },
+    {
+      "id": "user-estudiante",
+      "username": "estudiante",
+      "enabled": true,
+      "email": "estudiante@portico.edu",
+      "emailVerified": true,
+      "firstName": "María",
+      "lastName": "García",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "estudiante123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "estudiante"
+      ],
+      "clientRoles": {
+        "01": [
+          "estudiante"
+        ]
+      }
+    }
+  ],
+  "clients": [
+    {
+      "id": "client-01",
+      "clientId": "01",
+      "name": "Plataforma Web",
+      "description": "Cliente para la aplicación web de la plataforma educativa",
+      "rootUrl": "http://localhost:4200",
+      "adminUrl": "http://localhost:4200",
+      "baseUrl": "http://localhost:4200",
+      "surrogateAuthRequired": false,
+      "enabled": true,
+      "alwaysDisplayInConsole": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "wP8EhQnsdaYcCSyFTnD2wu4n0dssApUz",
+      "redirectUris": [
+        "http://localhost:4200/*",
+        "http://localhost:4300/*"
+      ],
+      "webOrigins": [
+        "http://localhost:4200",
+        "http://localhost:4300"
+      ],
+      "notBefore": 0,
+      "bearerOnly": false,
+      "consentRequired": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "publicClient": false,
+      "frontchannelLogout": true,
+      "protocol": "openid-connect",
+      "attributes": {
+        "oidc.ciba.grant.enabled": "false",
+        "client.secret.creation.time": "1704067200",
+        "backchannel.logout.session.required": "true",
+        "backchannel.logout.revoke.offline.tokens": "false",
+        "post.logout.redirect.uris": "+"
+      },
+      "authenticationFlowBindingOverrides": {},
+      "fullScopeAllowed": true,
+      "nodeReRegistrationTimeout": -1,
+      "protocolMappers": [
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "client roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-client-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "resource_access.${client_id}.roles",
+            "jsonType.label": "String"
+          }
+        }
+      ],
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "roles",
+        "profile",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ]
+    }
+  ],
+  "clientScopes": [
+    {
+      "id": "role_list",
+      "name": "role_list",
+      "protocol": "saml",
+      "attributes": {
+        "consent.screen.text": "${rolesScopeConsentText}",
+        "display.on.consent.screen": "true"
+      }
+    }
+  ],
+  "defaultDefaultClientScopes": [
+    "role_list"
+  ],
+  "browserSecurityHeaders": {
+    "contentSecurityPolicyReportOnly": "",
+    "X-Content-Type-Options": "nosniff",
+    "X-Robots-Tag": "none",
+    "X-XSS-Protection": "1; mode=block",
+    "contentSecurityPolicy": "frame-src 'self'; frame-ancestors 'self'; object-src 'none';",
+    "X-Frame-Options": "SAMEORIGIN",
+    "strictTransportSecurity": "max-age=31536000; includeSubDomains"
+  },
+  "smtpServer": {},
+  "loginTheme": "keycloak",
+  "accountTheme": "keycloak",
+  "adminTheme": "keycloak",
+  "emailTheme": "keycloak",
+  "eventsEnabled": false,
+  "eventsListeners": [
+    "jboss-logging"
+  ],
+  "enabledEventTypes": [],
+  "adminEventsEnabled": false,
+  "adminEventsDetailsEnabled": false,
+  "identityProviders": [],
+  "identityProviderMappers": [],
+  "internationalizationEnabled": false,
+  "supportedLocales": [],
+  "browserFlow": "browser",
+  "registrationFlow": "registration",
+  "directGrantFlow": "direct grant",
+  "resetCredentialsFlow": "reset credentials",
+  "clientAuthenticationFlow": "clients",
+  "dockerAuthenticationFlow": "docker auth",
+  "attributes": {
+    "cibaBackchannelTokenDelivery": "poll",
+    "cibaExpiresIn": "120",
+    "cibaAuthRequestedUserHint": "login_hint",
+    "oauth2DeviceCodeLifespan": "600",
+    "oauth2DevicePollingInterval": "5",
+    "clientOfflineSessionMaxLifespan": "0",
+    "clientSessionIdleTimeout": "0",
+    "clientOfflineSessionIdleTimeout": "0",
+    "clientSessionMaxLifespan": "0",
+    "clientPolicies": "{}",
+    "cibaInterval": "5"
+  },
+  "keycloakVersion": "26.1.0"
+}

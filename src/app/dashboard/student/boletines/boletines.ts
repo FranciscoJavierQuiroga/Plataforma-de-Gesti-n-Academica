@@ -76,7 +76,7 @@ export default class BoletinesComponent implements OnInit {
           document.body.removeChild(a);
           window.URL.revokeObjectURL(url);
 
-          this.successMessage = '✅ Boletín descargado exitosamente';
+          this.successMessage = 'Boletín descargado exitosamente';
           setTimeout(() => this.successMessage = null, 3000);
         }
       },

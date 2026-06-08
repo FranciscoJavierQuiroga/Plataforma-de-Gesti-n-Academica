@@ -8,11 +8,11 @@
 
   <!-- Mensajes de éxito/error -->
   <div *ngIf="successMessage" class="alert alert-success">
-    ✅ {{ successMessage }}
+    <span class="material-icons">check</span> {{ successMessage }}
   </div>
 
   <div *ngIf="error" class="alert alert-error">
-    ❌ {{ error }}
+    <span class="material-icons">close</span> {{ error }}
   </div>
 
   <div class="selection card">
@@ -44,10 +44,10 @@
     
     <div class="field actions">
       <button class="btn" (click)="marcarTodos('presente')" [disabled]="estudiantes.length === 0">
-        ✓ Todos Presentes
+        <span class="material-icons">check</span> Todos Presentes
       </button>
       <button class="btn" (click)="marcarTodos('ausente')" [disabled]="estudiantes.length === 0">
-        ✗ Todos Ausentes
+        <span class="material-icons">close</span> Todos Ausentes
       </button>
     </div>
   </div>
@@ -57,27 +57,27 @@
     <h4>Resumen</h4>
     <div class="summary-grid">
       <div class="summary-item">
-        <span class="icon">👥</span>
+        <span class="material-icons icon">groups</span>
         <span class="value">{{ getResumen().total }}</span>
         <span class="label">Total</span>
       </div>
       <div class="summary-item success">
-        <span class="icon">✅</span>
+        <span class="material-icons icon">check_circle</span>
         <span class="value">{{ getResumen().presentes }}</span>
         <span class="label">Presentes</span>
       </div>
       <div class="summary-item danger">
-        <span class="icon">❌</span>
+        <span class="material-icons icon">cancel</span>
         <span class="value">{{ getResumen().ausentes }}</span>
         <span class="label">Ausentes</span>
       </div>
       <div class="summary-item warning">
-        <span class="icon">⏰</span>
+        <span class="material-icons icon">schedule</span>
         <span class="value">{{ getResumen().tardes }}</span>
         <span class="label">Tardes</span>
       </div>
       <div class="summary-item info">
-        <span class="icon">📝</span>
+        <span class="material-icons icon">note</span>
         <span class="value">{{ getResumen().excusas }}</span>
         <span class="label">Excusas</span>
       </div>
@@ -99,11 +99,11 @@
     </div>
 
     <div *ngIf="!grupoSeleccionado" class="empty-state">
-      <p>👆 Selecciona un grupo para comenzar</p>
+      <p><span class="material-icons">touch_app</span> Selecciona un grupo para comenzar</p>
     </div>
 
     <div *ngIf="grupoSeleccionado && estudiantes.length === 0" class="empty-state">
-      <p>📭 No hay estudiantes matriculados en este grupo</p>
+      <p><span class="material-icons">inbox</span> No hay estudiantes matriculados en este grupo</p>
     </div>
 
     <table class="table" *ngIf="estudiantes.length > 0">
@@ -121,10 +121,10 @@
           <td class="nombre">{{ e.nombre }}</td>
           <td class="estado">
             <select [(ngModel)]="e.estado" class="estado-select">
-              <option value="presente">✅ Presente</option>
-              <option value="ausente">❌ Ausente</option>
-              <option value="tarde">⏰ Tarde</option>
-              <option value="excusa">📝 Excusa</option>
+              <option value="presente"><span class="material-icons">check_circle</span> Presente</option>
+              <option value="ausente"><span class="material-icons">cancel</span> Ausente</option>
+              <option value="tarde"><span class="material-icons">schedule</span> Tarde</option>
+              <option value="excusa"><span class="material-icons">note</span> Excusa</option>
             </select>
           </td>
           <td class="observaciones">
@@ -142,7 +142,7 @@
     <div class="actions-row" *ngIf="estudiantes.length > 0">
       <div class="info">
         <span class="hint">
-          💡 Asegúrate de revisar todos los estados antes de guardar
+          <span class="material-icons">lightbulb</span> Asegúrate de revisar todos los estados antes de guardar
         </span>
       </div>
       <div class="buttons">
@@ -150,14 +150,14 @@
           class="btn outline" 
           (click)="cargarEstudiantes()"
           [disabled]="loading || saving">
-          🔄 Recargar
+          <span class="material-icons">refresh</span> Recargar
         </button>
         <button 
           class="btn primary" 
           (click)="guardarAsistencia()"
           [disabled]="saving">
-          <span *ngIf="!saving">💾 Guardar Asistencia</span>
-          <span *ngIf="saving">⏳ Guardando...</span>
+          <span *ngIf="!saving"><span class="material-icons">save</span> Guardar Asistencia</span>
+          <span *ngIf="saving"><span class="material-icons">hourglass</span> Guardando...</span>
         </button>
       </div>
     </div>
