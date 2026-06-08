@@ -3,24 +3,26 @@
   align-items: center;
   gap: 8px;
   padding: 12px 24px;
-  background: rgba(0, 0, 0, 0.05);
-  border: 1.5px solid rgba(0, 0, 0, 0.15);
+  background: var(--glass-bg);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
   border-radius: var(--radius-md);
-  color: var(--color-primary);
+  color: var(--primary);
   font-weight: 600;
   font-size: 14px;
   text-decoration: none;
   cursor: pointer;
   transition: all var(--transition-base);
-  backdrop-filter: blur(8px);
-  white-space: nowrap;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: blur(8px);
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
 }
 
 .back:hover {
-  background: rgba(0, 0, 0, 0.08);
-  border-color: rgba(0, 0, 0, 0.25);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background: var(--primary-light);
+  border-color: var(--primary);
+  transform: translateX(-4px);
+  box-shadow: var(--shadow-md);
 }
 
 .back .material-icons {

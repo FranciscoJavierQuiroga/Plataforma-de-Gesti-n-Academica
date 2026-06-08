@@ -9,24 +9,24 @@
     <p class="hint">Ingresa y gestiona las notas de tus estudiantes</p>
   </header>
 
-  <!-- Mensaje de error -->
+  <!-- Error -->
   <div *ngIf="error" class="alert alert-error">
     {{ error }}
   </div>
 
-  <!-- Selección de curso y periodo -->
-  <div class="selection card">
+  <!-- Selection -->
+  <div class="selection" *ngIf="!loading">
     <div class="field">
       <label>Grupo</label>
       <select [(ngModel)]="cursoSeleccionado" (change)="onGrupoChange()" [disabled]="loading">
         <option [ngValue]="null">Seleccionar grupo</option>
-        <option *ngFor="let g of grupos" [ngValue]="g">{{ g.name }}</option>
+        <option *ngFor="let g of grupos; trackBy: trackByGrupo" [ngValue]="g">{{ g.name }}</option>
       </select>
     </div>
     <div class="field">
       <label>Periodo</label>
       <select [(ngModel)]="periodoSeleccionado" [disabled]="loading">
-        <option *ngFor="let p of periodos" [ngValue]="p">Periodo {{ p }}</option>
+        <option *ngFor="let p of periodos; trackBy: trackByPeriodo" [ngValue]="p">Periodo {{ p }}</option>
       </select>
     </div>
     <div class="field">
@@ -42,48 +42,52 @@
     </div>
   </div>
 
-  <!-- Indicador de carga -->
-  <div *ngIf="loading" class="loading-indicator">
-    <div class="spinner"></div>
+  <!-- Loading Skeleton -->
+  <div *ngIf="loading" class="loading-skeleton">
+    <div class="skeleton-spinner"></div>
     <p>Cargando calificaciones...</p>
   </div>
 
-  <!-- Tabla de estudiantes -->
-  <section class="students card" *ngIf="!loading && cursoSeleccionado">
+  <!-- Students Section -->
+  <section class="students" *ngIf="!loading && cursoSeleccionado">
     <div class="students-title">Lista de Estudiantes - {{ cursoSeleccionado.name }}</div>
     <div class="students-sub">Periodo {{ periodoSeleccionado }}</div>
 
-    <table class="table" *ngIf="estudiantes.length > 0">
-      <thead>
-        <tr>
-          <th>Código</th>
-          <th>Nombre</th>
-          <th>Nota 1</th>
-          <th>Nota 2</th>
-          <th>Nota 3</th>
-          <th>Promedio</th>
-          <th>Observaciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let s of estudiantes; trackBy: trackByEstudiante">
-          <td class="code">{{ s.student_code }}</td>
-          <td class="name">{{ s.student_name }}</td>
-          <td><input type="number" [(ngModel)]="s.nota1" step="0.1" min="0" max="5" /></td>
-          <td><input type="number" [(ngModel)]="s.nota2" step="0.1" min="0" max="5" /></td>
-          <td><input type="number" [(ngModel)]="s.nota3" step="0.1" min="0" max="5" /></td>
-          <td>
-            <span class="chip" [class.pass]="s.average >= 3" [class.fail]="s.average < 3">
-              {{ s.average || '—' }}
-            </span>
-          </td>
-          <td><input [(ngModel)]="s.observaciones" placeholder="Observaciones..." /></td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="table-wrapper" *ngIf="estudiantes.length > 0">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Nombre</th>
+            <th>Nota 1</th>
+            <th>Nota 2</th>
+            <th>Nota 3</th>
+            <th>Promedio</th>
+            <th>Observaciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let s of estudiantes; trackBy: trackByEstudiante">
+            <td class="code">{{ s.student_code }}</td>
+            <td class="name">{{ s.student_name }}</td>
+            <td><input type="number" [(ngModel)]="s.nota1" step="0.1" min="0" max="5" /></td>
+            <td><input type="number" [(ngModel)]="s.nota2" step="0.1" min="0" max="5" /></td>
+            <td><input type="number" [(ngModel)]="s.nota3" step="0.1" min="0" max="5" /></td>
+            <td>
+              <span class="chip" [class.pass]="s.average >= 3" [class.fail]="s.average < 3">
+                {{ s.average || '—' }}
+              </span>
+            </td>
+            <td><input type="text" [(ngModel)]="s.observaciones" placeholder="Observaciones..." /></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
     <div *ngIf="estudiantes.length === 0" class="empty-state">
-      <p>No hay estudiantes matriculados en este curso</p>
+      <span class="material-icons">school</span>
+      <h3>Sin estudiantes</h3>
+      <p>No hay estudiantes matriculados en este grupo</p>
     </div>
 
     <div class="actions-row" *ngIf="estudiantes.length > 0">
@@ -93,25 +97,27 @@
       </label>
       <div class="buttons">
         <button class="btn" (click)="calcularPromediosAuto()">
+          <span class="material-icons">calculate</span>
           Calcular Promedio
         </button>
         <button class="btn" (click)="exportarPDF()">
+          <span class="material-icons">picture_as_pdf</span>
           Exportar PDF
         </button>
-        <button 
-          class="btn primary" 
-          (click)="guardarCalificaciones()" 
-          [disabled]="guardando">
+        <button class="btn primary" (click)="guardarCalificaciones()" [disabled]="guardando">
+          <span class="material-icons">save</span>
           {{ guardando ? 'Guardando...' : 'Guardar Calificaciones' }}
         </button>
       </div>
     </div>
   </section>
 
-  <!-- Mensaje cuando no hay curso seleccionado -->
-  <section class="students card" *ngIf="!loading && !cursoSeleccionado">
+  <!-- No Course Selected -->
+  <section class="students" *ngIf="!loading && !cursoSeleccionado">
     <div class="empty-state">
-      <p>Por favor selecciona un grupo para ver las calificaciones</p>
+      <span class="material-icons">assignment</span>
+      <h3>Selecciona un grupo</h3>
+      <p>Elige un grupo y periodo para comenzar a registrar calificaciones</p>
     </div>
   </section>
 </section>

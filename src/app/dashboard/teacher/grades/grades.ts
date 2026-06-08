@@ -230,4 +230,6 @@ export default class GradesComponent implements OnInit {
   }
 
   trackByEstudiante(index: number, estudiante: any): string { return estudiante.student_id || estudiante.enrollment_id || index; }
+  trackByGrupo(index: number, grupo: any): string { return grupo._id || index; }
+  trackByPeriodo(index: number, periodo: string): string { return periodo; }
 }

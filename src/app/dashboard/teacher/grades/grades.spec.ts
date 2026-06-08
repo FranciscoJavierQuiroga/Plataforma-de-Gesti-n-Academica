@@ -5,12 +5,14 @@ import { Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import GradesComponent from './grades';
 import { ApiService } from '../../../services/api.service';
+import { AlertService } from '../../../services/alert.service';
 
 describe('GradesComponent', () => {
   let component: GradesComponent;
   let fixture: ComponentFixture<GradesComponent>;
   let apiService: any;
   let router: any;
+  let alertService: any;
 
   const mockGroups = {
     success: true,
@@ -48,6 +50,13 @@ describe('GradesComponent', () => {
       navigate: jest.fn()
     };
 
+    const alertServiceMock = {
+      error: jest.fn(),
+      warning: jest.fn(),
+      success: jest.fn(),
+      info: jest.fn()
+    };
+
     await TestBed.configureTestingModule({
       imports: [
         GradesComponent,
@@ -56,12 +65,14 @@ describe('GradesComponent', () => {
       ],
       providers: [
         { provide: ApiService, useValue: apiServiceMock },
-        { provide: Router, useValue: routerMock }
+        { provide: Router, useValue: routerMock },
+        { provide: AlertService, useValue: alertServiceMock }
       ]
     }).compileComponents();
 
     apiService = TestBed.inject(ApiService);
     router = TestBed.inject(Router);
+    alertService = TestBed.inject(AlertService);
     router.navigate = routerMock.navigate;
 
     fixture = TestBed.createComponent(GradesComponent);
@@ -170,7 +181,6 @@ describe('GradesComponent', () => {
   });
 
   it('should not save with invalid grades (negative)', () => {
-    const alertSpy = jest.spyOn(window, 'alert').mockImplementation();
     component.cursoSeleccionado = mockGroups.groups[0];
     component.estudiantes = [
       {
@@ -187,13 +197,11 @@ describe('GradesComponent', () => {
     
     component.guardarCalificaciones();
     
-    expect(alertSpy).toHaveBeenCalledWith('Error: Las notas deben estar entre 0.0 y 5.0');
+    expect(alertService.error).toHaveBeenCalledWith('Las notas deben estar entre 0.0 y 5.0');
     expect(apiService.bulkUploadGrades).not.toHaveBeenCalled();
-    alertSpy.mockRestore();
   });
 
   it('should not save with invalid grades (over 5)', () => {
-    const alertSpy = jest.spyOn(window, 'alert').mockImplementation();
     component.cursoSeleccionado = mockGroups.groups[0];
     component.estudiantes = [
       {
@@ -209,12 +217,10 @@ describe('GradesComponent', () => {
     
     component.guardarCalificaciones();
     
-    expect(alertSpy).toHaveBeenCalledWith('Error: Las notas deben estar entre 0.0 y 5.0');
-    alertSpy.mockRestore();
+    expect(alertService.error).toHaveBeenCalledWith('Las notas deben estar entre 0.0 y 5.0');
   });
 
   it('should save valid grades', (done) => {
-    const alertSpy = jest.spyOn(window, 'alert').mockImplementation();
     component.cursoSeleccionado = mockGroups.groups[0];
     component.estudiantes = [
       {
@@ -235,13 +241,11 @@ describe('GradesComponent', () => {
     setTimeout(() => {
       expect(apiService.bulkUploadGrades).toHaveBeenCalled();
       expect(component.guardando).toBe(false);
-      alertSpy.mockRestore();
       done();
     }, 100);
   });
 
   it('should not save when no grades to upload', () => {
-    const alertSpy = jest.spyOn(window, 'alert').mockImplementation();
     component.cursoSeleccionado = mockGroups.groups[0];
     component.estudiantes = [
       {
@@ -256,13 +260,11 @@ describe('GradesComponent', () => {
     
     component.guardarCalificaciones();
     
-    expect(alertSpy).toHaveBeenCalledWith('No hay calificaciones para guardar');
+    expect(alertService.warning).toHaveBeenCalledWith('No hay calificaciones para guardar');
     expect(component.guardando).toBe(false);
-    alertSpy.mockRestore();
   });
 
   it('should handle error when saving grades', (done) => {
-    const alertSpy = jest.spyOn(window, 'alert').mockImplementation();
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
     apiService.bulkUploadGrades.mockReturnValue(
       throwError(() => new Error('Error'))
@@ -284,19 +286,16 @@ describe('GradesComponent', () => {
     component.guardarCalificaciones();
     
     setTimeout(() => {
-      expect(alertSpy).toHaveBeenCalledWith('Error al guardar calificaciones');
+      expect(alertService.error).toHaveBeenCalledWith('Error al guardar calificaciones');
       expect(component.guardando).toBe(false);
-      alertSpy.mockRestore();
       consoleErrorSpy.mockRestore();
       done();
     }, 100);
   });
 
   it('should export PDF (placeholder)', () => {
-    const alertSpy = jest.spyOn(window, 'alert').mockImplementation();
     component.exportarPDF();
-    expect(alertSpy).toHaveBeenCalled();
-    alertSpy.mockRestore();
+    expect(alertService.info).toHaveBeenCalledWith('Funcionalidad de exportación a PDF en desarrollo');
   });
 
   it('should navigate back to teacher dashboard', () => {
