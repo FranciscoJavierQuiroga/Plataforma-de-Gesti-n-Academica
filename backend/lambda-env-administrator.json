@@ -1,13 +1,7 @@
 {
-  "dev": {
-    "app_function": "app.app",
-    "aws_region": "us-east-1",
-    "profile_name": "default",
-    "project_name": "administrator-service",
-    "runtime": "python3.11",
-    "s3_bucket": "zappa-administrator-service-deployments",
-    "requirements_filename": "requirements.txt",
-    "environment_variables": {
+  "FunctionName": "administrator-service-dev",
+  "Environment": {
+    "Variables": {
       "ENVIRONMENT": "development",
       "SERVICE_NAME": "administrator",
       "KEYCLOAK_SERVER_URL": "https://lemur-3.cloud-iam.com/auth",

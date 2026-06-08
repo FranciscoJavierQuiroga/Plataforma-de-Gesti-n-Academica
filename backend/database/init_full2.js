@@ -5,9 +5,9 @@
 
 use colegio;
 
-print("🗑️  Eliminando base de datos anterior...");
+print(" Eliminando base de datos anterior...");
 db.dropDatabase();
-print("✔ Base de datos 'colegio' eliminada\n");
+print("Base de datos 'colegio' eliminada\n");
 
 use colegio;
 
@@ -55,7 +55,7 @@ db.usuarios.createIndex({ codigo_docente: 1 }, { unique: true, sparse: true });
 db.usuarios.createIndex({ id_grupo: 1 });
 db.usuarios.createIndex({ keycloak_id: 1 });
 
-print("✔ Colección 'usuarios' creada");
+print("Colección 'usuarios' creada");
 
 // ==========================================
 //   COLECCIÓN: GRUPOS
@@ -95,7 +95,7 @@ db.grupos.createIndex({ nombre_grupo: 1, año_lectivo: 1 }, { unique: true });
 db.grupos.createIndex({ grado: 1, jornada: 1 });
 db.grupos.createIndex({ activo: 1 });
 
-print("✔ Colección 'grupos' creada");
+print("Colección 'grupos' creada");
 
 // ==========================================
 //   COLECCIÓN: CURSOS
@@ -124,7 +124,7 @@ db.cursos.createIndex({ codigo_curso: 1 }, { unique: true });
 db.cursos.createIndex({ grado: 1, area: 1 });
 db.cursos.createIndex({ activo: 1 });
 
-print("✔ Colección 'cursos' creada");
+print("Colección 'cursos' creada");
 
 // ==========================================
 //   COLECCIÓN: ASIGNACIONES_DOCENTES
@@ -155,7 +155,7 @@ db.asignaciones_docentes.createIndex({ id_grupo: 1, id_curso: 1, periodo: 1 }, {
 db.asignaciones_docentes.createIndex({ id_docente: 1, periodo: 1 });
 db.asignaciones_docentes.createIndex({ activo: 1 });
 
-print("✔ Colección 'asignaciones_docentes' creada");
+print("Colección 'asignaciones_docentes' creada");
 
 // ==========================================
 //   COLECCIÓN: HORARIOS
@@ -170,7 +170,7 @@ db.horarios.createIndex({ grupo: 1, año_lectivo: 1 });
 db.horarios.createIndex({ id_grupo: 1, año_lectivo: 1 });
 db.horarios.createIndex({ id_grupo: 1, activo: 1 });
 
-print("✔ Colección 'horarios' creada");
+print("Colección 'horarios' creada");
 
 // ==========================================
 //   COLECCIÓN: MATRICULAS
@@ -222,7 +222,7 @@ db.matriculas.createIndex({ id_estudiante: 1, anio_lectivo: 1 }, { unique: true 
 db.matriculas.createIndex({ id_estudiante: 1, id_grupo: 1 });
 db.matriculas.createIndex({ estado: 1 });
 
-print("✔ Colección 'matriculas' creada");
+print("Colección 'matriculas' creada");
 
 // ==========================================
 //   COLECCIÓN: OBSERVACIONES
@@ -257,7 +257,7 @@ db.observaciones.createIndex({ id_estudiante: 1, fecha: -1 });
 db.observaciones.createIndex({ id_docente: 1, fecha: -1 });
 db.observaciones.createIndex({ tipo: 1, categoria: 1 });
 
-print("✔ Colección 'observaciones' creada");
+print("Colección 'observaciones' creada");
 
 // ==========================================
 //   COLECCIÓN: ASISTENCIA
@@ -305,19 +305,19 @@ db.createCollection("asistencia", {
 db.asistencia.createIndex({ id_curso: 1, fecha: 1 });
 db.asistencia.createIndex({ id_docente: 1, fecha: -1 });
 
-print("✔ Colección 'asistencia' creada");
+print("Colección 'asistencia' creada");
 
 // ==========================================
 //   COLECCIÓN: REPORTES
 // ==========================================
 db.createCollection("reportes");
-print("✔ Colección 'reportes' creada");
+print("Colección 'reportes' creada");
 
 // ==========================================
 //   COLECCIÓN: CERTIFICADOS
 // ==========================================
 db.createCollection("certificados");
-print("✔ Colección 'certificados' creada");
+print("Colección 'certificados' creada");
 
 // ==========================================
 //   COLECCIÓN: AUDITORÍA
@@ -341,9 +341,9 @@ db.createCollection("auditoria", {
 db.auditoria.createIndex({ id_usuario: 1, fecha: -1 });
 db.auditoria.createIndex({ accion: 1 });
 
-print("✔ Colección 'auditoria' creada");
+print("Colección 'auditoria' creada");
 
-print("\n✅ Esquema de base de datos creado\n");
+print("\nEsquema de base de datos creado\n");
 
 // ==========================================
 //   DATOS DE PRUEBA
@@ -363,7 +363,7 @@ const admin = db.usuarios.insertOne({
   creado_en: Timestamp()
 }).insertedId;
 
-print("✔ Administrador creado");
+print("Administrador creado");
 
 // DOCENTES
 const docentes = [
@@ -395,7 +395,7 @@ docentes.forEach((doc, idx) => {
   docentesIds[doc.codigo] = id;
 });
 
-print("✔ 6 Docentes creados");
+print("6 Docentes creados");
 
 // CURSOS
 const asignaturas = [
@@ -427,7 +427,7 @@ const cursosIds = {};
   });
 });
 
-print("✔ 12 Cursos creados");
+print("12 Cursos creados");
 
 // GRUPOS — CAMBIO: año_lectivo (con tilde), director_grupo
 const grupos = [
@@ -462,7 +462,7 @@ grupos.forEach(g => {
   gruposIds[g.nombre] = id;
 });
 
-print("✔ 4 Grupos creados");
+print("4 Grupos creados");
 
 // ESTUDIANTES
 const estudiantes = [
@@ -504,7 +504,7 @@ estudiantes.forEach((est, idx) => {
   db.grupos.updateOne({ _id: gruposIds[est.grupo] }, { $inc: { estudiantes_actuales: 1 } });
 });
 
-print("✔ 12 Estudiantes creados");
+print("12 Estudiantes creados");
 
 // ASIGNACIONES
 const asignaciones = [
@@ -570,7 +570,7 @@ asignaciones.forEach(a => {
   asignacionesIds[`${a.grupo}_${a.curso}`] = id;
 });
 
-print("✔ 24 Asignaciones creadas");
+print("24 Asignaciones creadas");
 
 // MATRÍCULAS CON CALIFICACIONES (estructura anidada usada por students_service)
 Object.entries(estudiantesIds).forEach(([codigo, data]) => {
@@ -616,7 +616,7 @@ Object.entries(estudiantesIds).forEach(([codigo, data]) => {
   });
 });
 
-print("✔ 12 Matrículas con calificaciones creadas");
+print("12 Matrículas con calificaciones creadas");
 
 // HORARIOS — formato leído por students_service: { grupo(str), año_lectivo, horario[] }
 const horasClases = ["07:00-08:00", "08:00-09:00", "09:00-10:00", "10:30-11:30", "11:30-12:30"];
@@ -659,7 +659,7 @@ const dias = ["lunes", "martes", "miércoles", "jueves", "viernes"];
   });
 });
 
-print("✔ 4 Horarios creados");
+print("4 Horarios creados");
 
 // OBSERVACIONES
 const tiposObs = [
@@ -707,7 +707,7 @@ Object.values(estudiantesIds).forEach(({ id }) => {
   }
 });
 
-print("✔ 24 Observaciones creadas");
+print("24 Observaciones creadas");
 
 // ASISTENCIA — CAMBIO: id_asignacion → id_curso (teachers_service usa id_curso)
 for (let d = 0; d < 5; d++) {
@@ -742,7 +742,7 @@ for (let d = 0; d < 5; d++) {
   });
 }
 
-print("✔ Registros de asistencia creados");
+print("Registros de asistencia creados");
 
 // AUDITORÍA
 db.auditoria.insertOne({
@@ -756,10 +756,10 @@ db.auditoria.insertOne({
   fecha: Timestamp()
 });
 
-print("✔ Auditoría registrada");
+print("Auditoría registrada");
 
-print("\n✅ BASE DE DATOS INICIALIZADA COMPLETAMENTE\n");
-print(`📊 Resumen:`);
+print("\nBASE DE DATOS INICIALIZADA COMPLETAMENTE\n");
+print(`Resumen:`);
 print(`   - Usuarios: ${db.usuarios.countDocuments()}`);
 print(`   - Grupos: ${db.grupos.countDocuments()}`);
 print(`   - Cursos: ${db.cursos.countDocuments()}`);

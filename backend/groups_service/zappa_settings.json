@@ -9,7 +9,13 @@
         "manage_roles": true,
         "environment_variables": {
             "ENVIRONMENT": "development",
-            "SERVICE_NAME": "groups"
+            "SERVICE_NAME": "groups",
+            "KEYCLOAK_SERVER_URL": "https://lemur-3.cloud-iam.com/auth",
+            "KEYCLOAK_REALM": "plataformainstitucional",
+            "KEYCLOAK_CLIENT_ID": "01",
+            "KEYCLOAK_CLIENT_SECRET": "wP8EhQnsdaYcCSyFTnD2wu4n0dssApUz",
+            "MONGO_URI": "mongodb+srv://fjquirogap200105_db_user:prueba123.@dbcolegio.b2xb5xo.mongodb.net/colegio?retryWrites=true&w=majority",
+            "MONGO_DB_NAME": "colegio"
         },
         "cors": true,
         "api_key_required": false,

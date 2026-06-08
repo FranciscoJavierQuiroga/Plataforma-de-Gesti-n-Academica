@@ -1,18 +1,18 @@
 import requests
 import json
 
-KEYCLOAK_URL = "http://localhost:8082"
+KEYCLOAK_URL = "https://lemur-3.cloud-iam.com/auth"
 ADMIN_USER = "admin"
-ADMIN_PASS = "admin"
+ADMIN_PASS = "JX{RI#S}RqPs8Zp_xs2Q"
 
-REALM_NAME = "plataformaInstitucional"
+REALM_NAME = "plataformainstitucional"
 CLIENT_ID = "01"
 CLIENT_SECRET = "wP8EhQnsdaYcCSyFTnD2wu4n0dssApUz"
 
 # ── 1. Get admin access token ────────────────────────────────────────────────
 def get_admin_token():
     r = requests.post(
-        f"{KEYCLOAK_URL}/realms/master/protocol/openid-connect/token",
+        f"{KEYCLOAK_URL}/realms/{REALM_NAME}/protocol/openid-connect/token",
         data={
             "client_id": "admin-cli",
             "username": ADMIN_USER,
@@ -23,7 +23,7 @@ def get_admin_token():
     r.raise_for_status()
     return r.json()["access_token"]
 
-# ── 2. Create realm ────────────────────────────────────────────────────────
+# ── 2. Create realm (skip if exists) ────────────────────────────────────────
 def create_realm(token):
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     payload = {
@@ -164,8 +164,7 @@ if __name__ == "__main__":
     print("🔑 Getting admin token...")
     token = get_admin_token()
     
-    print("\n📦 Creating realm...")
-    create_realm(token)
+    print("\n📦 Realm already exists — skipping creation")
     
     print("\n🔌 Creating client...")
     create_client(token)

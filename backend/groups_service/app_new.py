@@ -28,7 +28,7 @@ CORS(app)
 # Keycloak configuration
 KEYCLOAK_SERVER = os.getenv('KEYCLOAK_SERVER_URL', 'http://localhost:8082')
 KEYCLOAK_CLIENT_ID = os.getenv('KEYCLOAK_CLIENT_ID', '01')
-KEYCLOAK_REALM = os.getenv('KEYCLOAK_REALM', 'plataformaInstitucional')
+KEYCLOAK_REALM = os.getenv('KEYCLOAK_REALM', 'plataformainstitucional')
 KEYCLOAK_CLIENT_SECRET = os.getenv('KEYCLOAK_CLIENT_SECRET', '2m2KWH4lyYgh9CwoM1y2QI6bFrDjR3OV')
 
 keycloak_openid = None

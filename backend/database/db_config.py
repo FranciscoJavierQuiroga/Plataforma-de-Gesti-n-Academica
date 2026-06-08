@@ -6,6 +6,10 @@ from bson import ObjectId
 from bson.timestamp import Timestamp
 from datetime import datetime
 import requests
+from dotenv import load_dotenv, find_dotenv
+
+# Cargar variables de entorno desde .env automaticamente
+load_dotenv(find_dotenv())
 
 
 class DatabaseConfig:

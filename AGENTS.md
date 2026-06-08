@@ -152,20 +152,22 @@ npm run test:file <file>                   # Run related tests for a specific fi
 
 ## Local Development Infrastructure
 
-### Docker Compose (Keycloak + MongoDB)
-```bash
-./start_infrastructure.sh            # Start Docker containers + backend
-./stop_infrastructure.sh             # Stop Docker containers
-```
+### MongoDB Atlas (Production Database)
+**Connection:** `mongodb+srv://fjquirogap200105_db_user:prueba123.@dbcolegio.b2xb5xo.mongodb.net/colegio?retryWrites=true&w=majority`
+**Database:** `colegio`
+**Status:** Connected and seeded with test data
 
-**Services:**
-- **Keycloak:** `localhost:8082` (admin/admin) — realm `plataformaInstitucional` pre-configured
-- **MongoDB:** `localhost:27017` (database: `colegio`) — requires auth (`admin/admin123`)
+### Keycloak (Cloud-iam.com - Production Auth)
+**URL:** `https://lemur-3.cloud-iam.com/auth`
+**Realm:** `plataformainstitucional`
+**Client:** `01`
+**Admin Console:** `https://lemur-3.cloud-iam.com/auth/admin/plataformainstitucional/console/`
 
 **Test Users:**
-- `admin/admin123` (role: administrador)
-- `profesor/profesor123` (role: docente)
-- `estudiante/estudiante123` (role: estudiante)
+- `admin` / `JX{RI#S}RqPs8Zp_xs2Q` (role: administrador)
+- `juan.perez` / `Docente123!` (role: docente)
+- `carlos.ramirez` / `Estudiante123!` (role: estudiante)
+- (and 12 more users created by `keycloak_setup.py`)
 
 ### Backend Virtual Environment
 All backend services run inside a shared Python virtual environment:
@@ -176,23 +178,36 @@ python backend/<service>/app.py &    # Run individual service
 
 **Dependencies installed in `backend/.venv`:**
 ```bash
-pip install Flask Flask-CORS python-keycloak pymongo PyJWT zappa Werkzeug setuptools==69.5.1 reportlab pillow
+pip install Flask Flask-CORS python-keycloak pymongo PyJWT zappa Werkzeug setuptools==69.5.1 reportlab pillow python-dotenv
 ```
 
 **Critical dependency notes:**
 - `setuptools==69.5.1` is **required** — modern setuptools 82+ removed `pkg_resources`, breaking `python-keycloak`
+- `python-dotenv` is **required** — added to `db_config.py` for automatic `.env` loading
 - `reportlab` + `pillow` are required for PDF generation in `students_service`
-- `mongo:4.4` is used in Docker (not 7.0) because the host CPU lacks AVX support required by MongoDB 5.0+
-- `docker-compose.yml` removed obsolete `version: '3.8'` attribute for Docker Compose v2 compatibility
 
 ### Environment Variables
 Backend services read from `.env` in the project root:
 ```
-MONGODB_URI=mongodb://admin:admin123@localhost:27017/colegio?authSource=admin
-KEYCLOAK_SERVER_URL=http://localhost:8082
-KEYCLOAK_REALM=plataformaInstitucional
-KEYCLOAK_CLIENT_ID=plataforma-client
-KEYCLOAK_CLIENT_SECRET=<secret>
+MONGO_URI=mongodb+srv://fjquirogap200105_db_user:prueba123.@dbcolegio.b2xb5xo.mongodb.net/colegio?retryWrites=true&w=majority
+MONGO_DB_NAME=colegio
+KEYCLOAK_SERVER_URL=https://lemur-3.cloud-iam.com/auth
+KEYCLOAK_REALM=plataformainstitucional
+KEYCLOAK_CLIENT_ID=01
+KEYCLOAK_CLIENT_SECRET=wP8EhQnsdaYcCSyFTnD2wu4n0dssApUz
+APP_SECRET=plataforma_secret
 ```
 
 `start_backend.sh` automatically loads `.env` variables before starting services.
+
+### Docker Compose (Local Backup - Optional)
+```bash
+./start_infrastructure.sh            # Start Docker containers (Keycloak + MongoDB)
+./stop_infrastructure.sh             # Stop Docker containers
+```
+
+**Services:**
+- **Keycloak:** `localhost:8082` (admin/admin) — realm `plataformaInstitucional` pre-configured
+- **MongoDB:** `localhost:27017` (database: `colegio`) — requires auth (`admin/admin123`)
+
+**Note:** Docker infrastructure is optional. Production uses MongoDB Atlas and cloud-iam.com Keycloak.

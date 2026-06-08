@@ -3,6 +3,7 @@ from flask_cors import CORS
 import os
 import datetime
 import json
+import requests
 try:
     from keycloak import KeycloakOpenID
     import jwt
@@ -28,7 +29,7 @@ CORS(app, resources={
 # Keycloak configuration (from env)
 KEYCLOAK_SERVER = os.getenv('KEYCLOAK_SERVER_URL', 'http://localhost:8082')
 KEYCLOAK_CLIENT_ID = os.getenv('KEYCLOAK_CLIENT_ID', '01')
-KEYCLOAK_REALM = os.getenv('KEYCLOAK_REALM', 'plataformaInstitucional')
+KEYCLOAK_REALM = os.getenv('KEYCLOAK_REALM', 'plataformainstitucional')
 KEYCLOAK_CLIENT_SECRET = os.getenv('KEYCLOAK_CLIENT_SECRET', 'wP8EhQnsdaYcCSyFTnD2wu4n0dssApUz')
 
 keycloak_openid = None
@@ -38,9 +39,11 @@ if KeycloakOpenID is not None:
             server_url=KEYCLOAK_SERVER,
             client_id=KEYCLOAK_CLIENT_ID,
             realm_name=KEYCLOAK_REALM,
-            client_secret_key=KEYCLOAK_CLIENT_SECRET
+            client_secret_key=KEYCLOAK_CLIENT_SECRET,
+            verify=True
         )
-    except Exception:
+    except Exception as e:
+        print(f"Keycloak initialization error: {e}")
         keycloak_openid = None
 
 
@@ -89,6 +92,20 @@ def create_mock_jwt(username: str, role: str) -> str:
     return token
 
 
+def get_keycloak_token(username, password):
+    """Get token directly from Keycloak using requests"""
+    token_url = f"{KEYCLOAK_SERVER}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/token"
+    resp = requests.post(token_url, data={
+        "client_id": KEYCLOAK_CLIENT_ID,
+        "client_secret": KEYCLOAK_CLIENT_SECRET,
+        "username": username,
+        "password": password,
+        "grant_type": "password"
+    })
+    resp.raise_for_status()
+    return resp.json()
+
+
 @app.route('/login', methods=['POST'])
 def login():
     data = request.get_json() or {}
@@ -100,7 +117,7 @@ def login():
 
     if keycloak_openid is not None:
         try:
-            token = keycloak_openid.token(username, password)
+            token = get_keycloak_token(username, password)
             access = token.get('access_token')
             
             if jwt is None:

@@ -1,6 +1,9 @@
 <div class="group-detail-page">
   <header class="page-header">
-    <button class="back-btn" (click)="goBack()">← Volver</button>
+    <button class="back-btn" (click)="goBack()">
+      <span class="material-icons">arrow_back</span>
+      Volver al Dashboard
+    </button>
     <div class="header-content" *ngIf="group">
       <div class="title-section">
         <h1>{{ group.nombre_curso }}</h1>

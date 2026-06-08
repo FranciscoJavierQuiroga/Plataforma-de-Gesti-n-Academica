@@ -91,7 +91,7 @@ echo -e "${YELLOW}⏳ Esperando a que MongoDB esté listo...${NC}"
 RETRY=0
 
 while [ $RETRY -lt $MAX_RETRIES ]; do
-    if docker exec mongo-plataforma mongosh --eval "db.adminCommand('ping')" > /dev/null 2>&1; then
+    if docker exec mongo-plataforma mongo --eval "db.adminCommand('ping')" > /dev/null 2>&1; then
         echo -e "${GREEN}✅ MongoDB está listo en mongodb://localhost:27017${NC}"
         break
     fi

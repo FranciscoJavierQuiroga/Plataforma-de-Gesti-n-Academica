@@ -70,7 +70,8 @@
               "buildTarget": "arquitectura_proyecto:build:production"
             },
             "development": {
-              "buildTarget": "arquitectura_proyecto:build:development"
+              "buildTarget": "arquitectura_proyecto:build:development",
+              "proxyConfig": "proxy.conf.json"
             },
             "lambda": {
               "buildTarget": "arquitectura_proyecto:build:lambda"

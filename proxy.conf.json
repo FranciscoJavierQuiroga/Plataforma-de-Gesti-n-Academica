@@ -28,5 +28,17 @@
     "secure": false,
     "changeOrigin": true,
     "pathRewrite": {"^/api/groups": ""}
+  },
+  "/api/grades": {
+    "target": "http://localhost:5005",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": {"^/api/grades": ""}
+  },
+  "/api/courses": {
+    "target": "http://localhost:5006",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": {"^/api/courses": ""}
   }
 }
