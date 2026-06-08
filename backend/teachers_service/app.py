@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, g
+from flask import Flask, request, jsonify, g, send_file
 from flask_cors import CORS
 from datetime import datetime
 from keycloak import KeycloakOpenID
@@ -7,6 +7,12 @@ import jwt as pyjwt
 import sys
 import os
 from bson.timestamp import Timestamp
+from io import BytesIO
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import inch
+from reportlab.lib import colors
+from reportlab.lib.utils import simpleSplit
 
 # Agregar el path del backend para importar db_config
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -897,15 +903,22 @@ def get_group_grades(group_id):
 
             for item in calificaciones:
                 if item.get('id_asignacion') in ids_asignaciones_docente:
-                    notas_docente.extend(item.get('notas', []))
-            
+                    assignment_id = str(item.get('id_asignacion'))
+                    periodo = item.get('periodo', '1')
+                    for idx, nota in enumerate(item.get('notas', [])):
+                        nota_copy = dict(nota)
+                        nota_copy['assignment_id'] = assignment_id
+                        nota_copy['periodo'] = periodo
+                        nota_copy['index'] = idx
+                        notas_docente.append(nota_copy)
+
             # Calcular promedio
             promedio = 0
             if notas_docente:
                 total = sum(c.get('nota', 0) * c.get('peso', 0) for c in notas_docente)
                 total_peso = sum(c.get('peso', 0) for c in notas_docente)
                 promedio = round(total / total_peso, 2) if total_peso > 0 else 0
-            
+
             students_data.append({
                 'enrollment_id': str(matricula['_id']),
                 'student_id': str(matricula['id_estudiante']),
@@ -1179,14 +1192,14 @@ def bulk_upload_grades():
             return jsonify({'success': False, 'error': 'No se proporcionaron calificaciones'}), 400
         
         course_id = data.get('course_id')
-        periodo = data.get('periodo', '1')          # ← NEW: get periodo
+        periodo = data.get('periodo', '1')
         tipo_evaluacion = data.get('tipo', 'Parcial')
         peso = float(data.get('peso', 0.33))
         
         if not course_id:
             return jsonify({'success': False, 'error': 'Se requiere course_id'}), 400
         
-        # Get teacher's assignment for this group
+        # Get teacher info
         teacher_email = g.userinfo.get('email') or g.userinfo.get('preferred_username')
         if teacher_email and '@' not in teacher_email:
             teacher_email = f"{teacher_email}@colegio.edu.co"
@@ -1203,16 +1216,6 @@ def bulk_upload_grades():
         
         from database.db_config import get_asignaciones_collection
         asignaciones_col = get_asignaciones_collection()
-        asignacion = asignaciones_col.find_one({
-            'id_docente': docente['_id'],
-            'id_grupo': string_to_objectid(course_id),
-            'activo': True
-        })
-        
-        if not asignacion:
-            return jsonify({'success': False, 'error': 'No tienes asignación para este grupo'}), 403
-        
-        asignacion_id = asignacion['_id']
         matriculas = get_matriculas_collection()
         
         successful = 0
@@ -1224,12 +1227,28 @@ def bulk_upload_grades():
                 enrollment_id = grade_entry.get('enrollment_id')
                 nota = float(grade_entry.get('nota', 0))
                 comentarios = grade_entry.get('comentarios', '')
+                assignment_id = grade_entry.get('assignment_id')
+                grade_index = grade_entry.get('grade_index')
                 
                 if not enrollment_id:
                     failed += 1
                     errors.append({'error': 'enrollment_id requerido', 'entry': grade_entry})
                     continue
                 
+                # If no assignment_id provided, look up teacher's assignment for this group
+                if not assignment_id:
+                    asignacion = asignaciones_col.find_one({
+                        'id_docente': docente['_id'],
+                        'id_grupo': string_to_objectid(course_id),
+                        'activo': True
+                    })
+                    if not asignacion:
+                        failed += 1
+                        errors.append({'error': 'No tienes asignación para este grupo', 'entry': grade_entry})
+                        continue
+                    assignment_id = str(asignacion['_id'])
+                
+                asignacion_obj_id = string_to_objectid(assignment_id)
                 enrollment_obj_id = string_to_objectid(enrollment_id)
                 matricula = matriculas.find_one({'_id': enrollment_obj_id})
                 
@@ -1239,20 +1258,41 @@ def bulk_upload_grades():
                     continue
                 
                 nueva_nota = {
-                'tipo': tipo_evaluacion,
-                'nota': nota,
-                'nota_maxima': 5.0,
-                'peso': peso,
-                'fecha_eval': datetime.utcnow(),
-                'comentarios': comentarios
+                    'tipo': tipo_evaluacion,
+                    'nota': nota,
+                    'nota_maxima': 5.0,
+                    'peso': peso,
+                    'fecha_eval': datetime.utcnow(),
+                    'comentarios': comentarios
                 }
-                grade_index = grade_entry.get('grade_index')
+                
+                # Check if calificaciones wrapper exists for this assignment + periodo
+                calificaciones = matricula.get('calificaciones', [])
+                wrapper_exists = False
+                for c in calificaciones:
+                    if c.get('id_asignacion') == asignacion_obj_id and c.get('periodo') == periodo:
+                        wrapper_exists = True
+                        break
+                
+                if not wrapper_exists:
+                    # Create wrapper first
+                    matriculas.update_one(
+                        {'_id': enrollment_obj_id},
+                        {'$push': {
+                            'calificaciones': {
+                                'id_asignacion': asignacion_obj_id,
+                                'periodo': periodo,
+                                'notas': []
+                            }
+                        }}
+                    )
+                
                 if grade_index is not None and grade_index >= 0:
                     # UPDATE existing grade at index
                     matriculas.update_one(
                         {
                             '_id': enrollment_obj_id,
-                            'calificaciones.id_asignacion': asignacion_id,
+                            'calificaciones.id_asignacion': asignacion_obj_id,
                             'calificaciones.periodo': periodo
                         },
                         {
@@ -1266,7 +1306,7 @@ def bulk_upload_grades():
                     matriculas.update_one(
                         {
                             '_id': enrollment_obj_id,
-                            'calificaciones.id_asignacion': asignacion_id,
+                            'calificaciones.id_asignacion': asignacion_obj_id,
                             'calificaciones.periodo': periodo
                         },
                         {
@@ -1275,7 +1315,25 @@ def bulk_upload_grades():
                             }
                         }
                     )
-                    
+                
+                # Recalculate and update average
+                matricula_actualizada = matriculas.find_one({'_id': enrollment_obj_id})
+                notas_docente = []
+                for c in matricula_actualizada.get('calificaciones', []):
+                    if c.get('id_asignacion') == asignacion_obj_id:
+                        notas_docente.extend(c.get('notas', []))
+                
+                promedio = 0
+                if notas_docente:
+                    total = sum(c.get('nota', 0) * c.get('peso', 0) for c in notas_docente)
+                    total_peso = sum(c.get('peso', 0) for c in notas_docente)
+                    promedio = round(total / total_peso, 2) if total_peso > 0 else 0
+                
+                matriculas.update_one(
+                    {'_id': enrollment_obj_id},
+                    {'$set': {'average': promedio}}
+                )
+                
                 successful += 1
                 
             except Exception as e:
@@ -1299,6 +1357,302 @@ def bulk_upload_grades():
         }), 200 if failed == 0 else 207
         
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/teacher/groups/<group_id>/pdf-report', methods=['GET'])
+@token_required('docente')
+def download_group_report_pdf(group_id):
+    """Generar reporte general del grupo en PDF (tabla con todos los estudiantes)"""
+    try:
+        periodo = request.args.get('periodo', '1')
+        grupo_obj_id = string_to_objectid(group_id)
+        if not grupo_obj_id:
+            return jsonify({'success': False, 'error': 'ID de grupo inválido'}), 400
+        
+        # Get teacher info
+        teacher_email = g.userinfo.get('email') or g.userinfo.get('preferred_username')
+        if teacher_email and '@' not in teacher_email:
+            teacher_email = f"{teacher_email}@colegio.edu.co"
+        
+        usuarios = get_usuarios_collection()
+        docente = usuarios.find_one({'correo': teacher_email, 'rol': 'docente', 'activo': True})
+        if not docente:
+            return jsonify({'success': False, 'error': 'Docente no encontrado'}), 404
+        
+        asignaciones = get_asignaciones_collection()
+        matriculas = get_matriculas_collection()
+        grupos = get_groups_collection()
+        
+        asignaciones_grupo = list(asignaciones.find({
+            'id_docente': docente['_id'],
+            'id_grupo': grupo_obj_id,
+            'activo': True
+        }))
+        if not asignaciones_grupo:
+            return jsonify({'success': False, 'error': 'No tienes asignaturas en este grupo'}), 403
+        
+        ids_asignaciones = {a['_id'] for a in asignaciones_grupo}
+        grupo_doc = grupos.find_one({'_id': grupo_obj_id})
+        grupo_nombre = grupo_doc.get('nombre_grupo', 'N/A') if grupo_doc else 'N/A'
+        grado = grupo_doc.get('grado', 'N/A') if grupo_doc else 'N/A'
+        
+        estudiantes_matriculados = list(matriculas.find({
+            'id_grupo': grupo_obj_id,
+            'estado': 'activa'
+        }).sort('estudiante_info.codigo_est', 1))
+        
+        # Build data
+        rows = []
+        total_promedio = 0
+        aprobados = 0
+        reprobados = 0
+        for matricula in estudiantes_matriculados:
+            student_info = matricula.get('estudiante_info', {})
+            calificaciones = matricula.get('calificaciones', [])
+            notas_docente = []
+            for c in calificaciones:
+                if c.get('id_asignacion') in ids_asignaciones and c.get('periodo') == periodo:
+                    notas_docente.extend(c.get('notas', []))
+            promedio = 0
+            if notas_docente:
+                total = sum(n.get('nota', 0) * n.get('peso', 0) for n in notas_docente)
+                total_peso = sum(n.get('peso', 0) for n in notas_docente)
+                promedio = round(total / total_peso, 2) if total_peso > 0 else 0
+            if promedio >= 3.0:
+                aprobados += 1
+            else:
+                reprobados += 1
+            total_promedio += promedio
+            estado = 'Aprobado' if promedio >= 3.0 else 'Reprobado'
+            rows.append({
+                'code': student_info.get('codigo_est', ''),
+                'name': f"{student_info.get('nombres', '')} {student_info.get('apellidos', '')}",
+                'notas': [n.get('nota', 0) for n in notas_docente[:3]],
+                'average': promedio,
+                'estado': estado
+            })
+        
+        promedio_grupo = round(total_promedio / len(rows), 2) if rows else 0
+        
+        # PDF generation
+        buffer = BytesIO()
+        p = canvas.Canvas(buffer, pagesize=letter)
+        width, height = letter
+        
+        # Header
+        p.setFont("Helvetica-Bold", 20)
+        p.drawCentredString(width / 2, height - inch, "REPORTE DE CALIFICACIONES")
+        p.setFont("Helvetica", 12)
+        p.drawCentredString(width / 2, height - 1.4 * inch, f"Grupo: {grupo_nombre} - Grado {grado}")
+        p.drawCentredString(width / 2, height - 1.8 * inch, f"Periodo: {periodo} | Docente: {docente.get('nombres', '')} {docente.get('apellidos', '')}")
+        
+        # Table headers
+        y = height - 2.5 * inch
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(inch, y, "Código")
+        p.drawString(2 * inch, y, "Nombre")
+        p.drawString(4.8 * inch, y, "N1")
+        p.drawString(5.3 * inch, y, "N2")
+        p.drawString(5.8 * inch, y, "N3")
+        p.drawString(6.3 * inch, y, "Prom")
+        p.drawString(6.9 * inch, y, "Estado")
+        y -= 0.1 * inch
+        p.line(inch, y, 7.5 * inch, y)
+        y -= 0.25 * inch
+        
+        # Table rows
+        p.setFont("Helvetica", 9)
+        for row in rows:
+            if y < 1.5 * inch:
+                p.showPage()
+                y = height - inch
+                p.setFont("Helvetica", 9)
+            p.drawString(inch, y, row['code'])
+            p.drawString(2 * inch, y, row['name'][:30])
+            notas = row['notas']
+            for i, n in enumerate(notas):
+                p.drawString((4.8 + i * 0.5) * inch, y, f"{n:.1f}")
+            for i in range(len(notas), 3):
+                p.drawString((4.8 + i * 0.5) * inch, y, "-")
+            p.drawString(6.3 * inch, y, f"{row['average']:.2f}")
+            if row['average'] >= 3.0:
+                p.setFillColorRGB(0, 0.5, 0)
+            else:
+                p.setFillColorRGB(0.8, 0, 0)
+            p.drawString(6.9 * inch, y, row['estado'])
+            p.setFillColorRGB(0, 0, 0)
+            y -= 0.22 * inch
+        
+        # Footer stats
+        y -= 0.3 * inch
+        p.line(inch, y, 7.5 * inch, y)
+        y -= 0.3 * inch
+        p.setFont("Helvetica-Bold", 11)
+        p.drawString(inch, y, f"Promedio del Grupo: {promedio_grupo:.2f}")
+        p.drawString(4 * inch, y, f"Aprobados: {aprobados} | Reprobados: {reprobados}")
+        p.drawString(6.5 * inch, y, f"Total: {len(rows)}")
+        y -= 0.3 * inch
+        p.setFont("Helvetica", 10)
+        p.drawString(inch, y, f"Fecha: {datetime.now().strftime('%d/%m/%Y')}")
+        
+        p.showPage()
+        p.save()
+        buffer.seek(0)
+        
+        return send_file(
+            buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f'reporte_{grupo_nombre}_periodo_{periodo}.pdf'
+        )
+        
+    except Exception as e:
+        print(f"Error en download_group_report_pdf: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/teacher/groups/<group_id>/pdf-cards', methods=['GET'])
+@token_required('docente')
+def download_group_cards_pdf(group_id):
+    """Generar boletines individuales de todos los estudiantes en un solo PDF multipágina"""
+    try:
+        periodo = request.args.get('periodo', '1')
+        grupo_obj_id = string_to_objectid(group_id)
+        if not grupo_obj_id:
+            return jsonify({'success': False, 'error': 'ID de grupo inválido'}), 400
+        
+        # Get teacher info
+        teacher_email = g.userinfo.get('email') or g.userinfo.get('preferred_username')
+        if teacher_email and '@' not in teacher_email:
+            teacher_email = f"{teacher_email}@colegio.edu.co"
+        
+        usuarios = get_usuarios_collection()
+        docente = usuarios.find_one({'correo': teacher_email, 'rol': 'docente', 'activo': True})
+        if not docente:
+            return jsonify({'success': False, 'error': 'Docente no encontrado'}), 404
+        
+        asignaciones = get_asignaciones_collection()
+        matriculas = get_matriculas_collection()
+        grupos = get_groups_collection()
+        
+        asignaciones_grupo = list(asignaciones.find({
+            'id_docente': docente['_id'],
+            'id_grupo': grupo_obj_id,
+            'activo': True
+        }))
+        if not asignaciones_grupo:
+            return jsonify({'success': False, 'error': 'No tienes asignaturas en este grupo'}), 403
+        
+        ids_asignaciones = {a['_id'] for a in asignaciones_grupo}
+        grupo_doc = grupos.find_one({'_id': grupo_obj_id})
+        grupo_nombre = grupo_doc.get('nombre_grupo', 'N/A') if grupo_doc else 'N/A'
+        grado = grupo_doc.get('grado', 'N/A') if grupo_doc else 'N/A'
+        
+        estudiantes_matriculados = list(matriculas.find({
+            'id_grupo': grupo_obj_id,
+            'estado': 'activa'
+        }).sort('estudiante_info.codigo_est', 1))
+        
+        buffer = BytesIO()
+        p = canvas.Canvas(buffer, pagesize=letter)
+        width, height = letter
+        
+        for matricula in estudiantes_matriculados:
+            student_info = matricula.get('estudiante_info', {})
+            calificaciones = matricula.get('calificaciones', [])
+            notas_docente = []
+            for c in calificaciones:
+                if c.get('id_asignacion') in ids_asignaciones and c.get('periodo') == periodo:
+                    notas_docente.extend(c.get('notas', []))
+            
+            promedio = 0
+            if notas_docente:
+                total = sum(n.get('nota', 0) * n.get('peso', 0) for n in notas_docente)
+                total_peso = sum(n.get('peso', 0) for n in notas_docente)
+                promedio = round(total / total_peso, 2) if total_peso > 0 else 0
+            
+            estado = 'APROBADO' if promedio >= 3.0 else 'REPROBADO'
+            
+            # Header
+            p.setFont("Helvetica-Bold", 18)
+            p.drawCentredString(width / 2, height - inch, "BOLETÍN DE CALIFICACIONES")
+            p.setFont("Helvetica", 11)
+            p.drawCentredString(width / 2, height - 1.4 * inch, f"{grupo_nombre} - Grado {grado} - Periodo {periodo}")
+            
+            # Student info
+            y = height - 2 * inch
+            p.setFont("Helvetica-Bold", 11)
+            p.drawString(inch, y, "Estudiante:")
+            p.setFont("Helvetica", 11)
+            p.drawString(2.2 * inch, y, f"{student_info.get('nombres', '')} {student_info.get('apellidos', '')}")
+            y -= 0.35 * inch
+            p.setFont("Helvetica-Bold", 11)
+            p.drawString(inch, y, "Código:")
+            p.setFont("Helvetica", 11)
+            p.drawString(2.2 * inch, y, student_info.get('codigo_est', 'N/A'))
+            y -= 0.5 * inch
+            
+            # Table headers
+            p.setFont("Helvetica-Bold", 10)
+            p.drawString(inch, y, "Tipo")
+            p.drawString(3 * inch, y, "Nota")
+            p.drawString(4 * inch, y, "Peso")
+            p.drawString(5 * inch, y, "Fecha")
+            p.drawString(6.2 * inch, y, "Observaciones")
+            y -= 0.1 * inch
+            p.line(inch, y, 7.5 * inch, y)
+            y -= 0.25 * inch
+            
+            # Table rows
+            p.setFont("Helvetica", 10)
+            for nota in notas_docente:
+                if y < 1.5 * inch:
+                    p.showPage()
+                    y = height - inch
+                    p.setFont("Helvetica", 10)
+                p.drawString(inch, y, nota.get('tipo', ''))
+                p.drawString(3 * inch, y, f"{nota.get('nota', 0):.1f}")
+                p.drawString(4 * inch, y, f"{nota.get('peso', 0):.2f}")
+                fecha = nota.get('fecha_eval', '')
+                if isinstance(fecha, datetime):
+                    fecha = fecha.strftime('%d/%m/%Y')
+                p.drawString(5 * inch, y, str(fecha)[:10])
+                p.drawString(6.2 * inch, y, nota.get('comentarios', '')[:20])
+                y -= 0.22 * inch
+            
+            if notas_docente:
+                y -= 0.2 * inch
+                p.line(inch, y, 7.5 * inch, y)
+                y -= 0.3 * inch
+                p.setFont("Helvetica-Bold", 12)
+                p.drawString(inch, y, "Promedio:")
+                p.drawString(2.2 * inch, y, f"{promedio:.2f}")
+                y -= 0.3 * inch
+                p.drawString(inch, y, "Estado:")
+                if promedio >= 3.0:
+                    p.setFillColorRGB(0, 0.5, 0)
+                else:
+                    p.setFillColorRGB(0.8, 0, 0)
+                p.drawString(2.2 * inch, y, estado)
+                p.setFillColorRGB(0, 0, 0)
+            
+            p.showPage()
+        
+        p.save()
+        buffer.seek(0)
+        
+        return send_file(
+            buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f'boletines_{grupo_nombre}_periodo_{periodo}.pdf'
+        )
+        
+    except Exception as e:
+        print(f"Error en download_group_cards_pdf: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/teacher/attendance', methods=['GET'])

@@ -43,7 +43,9 @@ describe('GradesComponent', () => {
     const apiServiceMock = {
       getTeacherGroups: jest.fn().mockReturnValue(of(mockGroups)),
       getCourseGrades: jest.fn().mockReturnValue(of(mockStudents)),
-      bulkUploadGrades: jest.fn().mockReturnValue(of({ success: true, successful: 3, failed: 0 }))
+      bulkUploadGrades: jest.fn().mockReturnValue(of({ success: true, successful: 3, failed: 0 })),
+      downloadGroupReportPDF: jest.fn().mockReturnValue(of(new Blob(['PDF']))),
+      downloadGroupCardsPDF: jest.fn().mockReturnValue(of(new Blob(['PDF'])))
     };
 
     const routerMock = {
@@ -293,9 +295,30 @@ describe('GradesComponent', () => {
     }, 100);
   });
 
-  it('should export PDF (placeholder)', () => {
-    component.exportarPDF();
-    expect(alertService.info).toHaveBeenCalledWith('Funcionalidad de exportación a PDF en desarrollo');
+  it('should download group report PDF', () => {
+    component.cursoSeleccionado = mockGroups.groups[0];
+    component.descargarReporteGrupo();
+    expect(apiService.downloadGroupReportPDF).toHaveBeenCalledWith('1', '1');
+    expect(alertService.warning).not.toHaveBeenCalled();
+  });
+
+  it('should warn if no group selected when downloading report', () => {
+    component.cursoSeleccionado = null;
+    component.descargarReporteGrupo();
+    expect(alertService.warning).toHaveBeenCalledWith('Selecciona un grupo primero');
+  });
+
+  it('should download student cards PDF', () => {
+    component.cursoSeleccionado = mockGroups.groups[0];
+    component.descargarBoletines();
+    expect(apiService.downloadGroupCardsPDF).toHaveBeenCalledWith('1', '1');
+    expect(alertService.warning).not.toHaveBeenCalled();
+  });
+
+  it('should warn if no group selected when downloading cards', () => {
+    component.cursoSeleccionado = null;
+    component.descargarBoletines();
+    expect(alertService.warning).toHaveBeenCalledWith('Selecciona un grupo primero');
   });
 
   it('should navigate back to teacher dashboard', () => {

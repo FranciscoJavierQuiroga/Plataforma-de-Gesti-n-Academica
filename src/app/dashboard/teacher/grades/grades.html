@@ -100,9 +100,13 @@
           <span class="material-icons">calculate</span>
           Calcular Promedio
         </button>
-        <button class="btn" (click)="exportarPDF()">
+        <button class="btn" (click)="descargarReporteGrupo()">
+          <span class="material-icons">summarize</span>
+          Reporte del Grupo
+        </button>
+        <button class="btn" (click)="descargarBoletines()">
           <span class="material-icons">picture_as_pdf</span>
-          Exportar PDF
+          Boletines de Estudiantes
         </button>
         <button class="btn primary" (click)="guardarCalificaciones()" [disabled]="guardando">
           <span class="material-icons">save</span>

@@ -12,6 +12,9 @@ interface Calificacion {
   peso: number;
   fecha_eval: string;
   comentarios?: string;
+  assignment_id?: string;
+  periodo?: string;
+  index?: number;
 }
 
 interface Estudiante {
@@ -29,6 +32,9 @@ interface Estudiante {
   nota1_index?: number;
   nota2_index?: number;
   nota3_index?: number;
+  nota1_assignment_id?: string;
+  nota2_assignment_id?: string;
+  nota3_assignment_id?: string;
 }
 
 @Component({
@@ -93,8 +99,8 @@ export default class GradesComponent implements OnInit {
 
   cargarCalificaciones() {
     if (!this.cursoSeleccionado) {
-      console.warn('⚠️ No hay curso seleccionado, no se cargan calificaciones');
-      return; // ✅ Esto debe estar
+      console.warn('No hay curso seleccionado, no se cargan calificaciones');
+      return;
     }
     this.loading = true;
     this.error = null;
@@ -103,7 +109,7 @@ export default class GradesComponent implements OnInit {
       next: (res: any) => {
         if (res.success) {
           this.estudiantes = res.students.map((student: any) => {
-            const grades = student.grades || [];
+            const grades: Calificacion[] = student.grades || [];
             return {
               enrollment_id: student.enrollment_id,
               student_id: student.student_id,
@@ -114,9 +120,12 @@ export default class GradesComponent implements OnInit {
               nota1: grades[0]?.nota || 0,
               nota2: grades[1]?.nota || 0,
               nota3: grades[2]?.nota || 0,
-              nota1_index: grades[0] !== undefined ? 0 : -1,
-              nota2_index: grades[1] !== undefined ? 1 : -1,
-              nota3_index: grades[2] !== undefined ? 2 : -1,
+              nota1_index: grades[0]?.index !== undefined ? grades[0].index : -1,
+              nota2_index: grades[1]?.index !== undefined ? grades[1].index : -1,
+              nota3_index: grades[2]?.index !== undefined ? grades[2].index : -1,
+              nota1_assignment_id: grades[0]?.assignment_id || undefined,
+              nota2_assignment_id: grades[1]?.assignment_id || undefined,
+              nota3_assignment_id: grades[2]?.assignment_id || undefined,
               observaciones: grades[grades.length - 1]?.comentarios || ''
             };
           });
@@ -163,13 +172,20 @@ export default class GradesComponent implements OnInit {
     const gradesToUpload = this.estudiantes
       .filter(est => tieneValor(est.nota1) || tieneValor(est.nota2) || tieneValor(est.nota3))
       .flatMap(est => {
-        const grades: Array<{ enrollment_id: string; nota: number; comentarios: string; grade_index?: number }> = [];
+        const grades: Array<{
+          enrollment_id: string;
+          nota: number;
+          comentarios: string;
+          grade_index?: number;
+          assignment_id?: string;
+        }> = [];
         if (tieneValor(est.nota1)) {
           grades.push({
             enrollment_id: est.enrollment_id,
             nota: est.nota1!,
             comentarios: est.observaciones || '',
-            grade_index: est.nota1_index! >= 0 ? est.nota1_index : undefined
+            grade_index: est.nota1_index! >= 0 ? est.nota1_index : undefined,
+            assignment_id: est.nota1_assignment_id || undefined
           });
         }
         if (tieneValor(est.nota2)) {
@@ -177,7 +193,8 @@ export default class GradesComponent implements OnInit {
             enrollment_id: est.enrollment_id,
             nota: est.nota2!,
             comentarios: est.observaciones || '',
-            grade_index: est.nota2_index! >= 0 ? est.nota2_index : undefined
+            grade_index: est.nota2_index! >= 0 ? est.nota2_index : undefined,
+            assignment_id: est.nota2_assignment_id || undefined
           });
         }
         if (tieneValor(est.nota3)) {
@@ -185,7 +202,8 @@ export default class GradesComponent implements OnInit {
             enrollment_id: est.enrollment_id,
             nota: est.nota3!,
             comentarios: est.observaciones || '',
-            grade_index: est.nota3_index! >= 0 ? est.nota3_index : undefined
+            grade_index: est.nota3_index! >= 0 ? est.nota3_index : undefined,
+            assignment_id: est.nota3_assignment_id || undefined
           });
         }
         return grades;
@@ -221,8 +239,52 @@ export default class GradesComponent implements OnInit {
     });
   }
 
-  exportarPDF() {
-    this.alertService.info('Funcionalidad de exportación a PDF en desarrollo');
+  descargarReporteGrupo() {
+    if (!this.cursoSeleccionado) {
+      this.alertService.warning('Selecciona un grupo primero');
+      return;
+    }
+    this.api.downloadGroupReportPDF(this.cursoSeleccionado._id, this.periodoSeleccionado)
+      .subscribe({
+        next: (blob: Blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `reporte_${this.cursoSeleccionado.name}_periodo_${this.periodoSeleccionado}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+        },
+        error: (err) => {
+          console.error('Error descargando reporte:', err);
+          this.alertService.error('Error al descargar el reporte');
+        }
+      });
+  }
+
+  descargarBoletines() {
+    if (!this.cursoSeleccionado) {
+      this.alertService.warning('Selecciona un grupo primero');
+      return;
+    }
+    this.api.downloadGroupCardsPDF(this.cursoSeleccionado._id, this.periodoSeleccionado)
+      .subscribe({
+        next: (blob: Blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `boletines_${this.cursoSeleccionado.name}_periodo_${this.periodoSeleccionado}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+        },
+        error: (err) => {
+          console.error('Error descargando boletines:', err);
+          this.alertService.error('Error al descargar los boletines');
+        }
+      });
   }
 
   goBack() {

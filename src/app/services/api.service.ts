@@ -128,9 +128,23 @@ export class ApiService {
     periodo: string;
     tipo: string;
     peso: number;
-    grades: Array<{ enrollment_id: string; nota: number; comentarios?: string; grade_index?: number }>;
+    grades: Array<{ enrollment_id: string; nota: number; comentarios?: string; grade_index?: number; assignment_id?: string }>;
   }) {
     return this.http.post(`${environment.api.teachers}/teacher/grades/bulk`, data);
+  }
+
+  downloadGroupReportPDF(groupId: string, periodo: string): Observable<Blob> {
+    return this.http.get(`${environment.api.teachers}/teacher/groups/${groupId}/pdf-report`, {
+      params: { periodo },
+      responseType: 'blob'
+    });
+  }
+
+  downloadGroupCardsPDF(groupId: string, periodo: string): Observable<Blob> {
+    return this.http.get(`${environment.api.teachers}/teacher/groups/${groupId}/pdf-cards`, {
+      params: { periodo },
+      responseType: 'blob'
+    });
   }
 
   // ===== ASISTENCIA =====
