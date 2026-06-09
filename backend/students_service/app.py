@@ -942,18 +942,46 @@ def download_boletin():
         print(f"📅 Periodo: {periodo}")
         
         matriculas = get_matriculas_collection()
+        grupos = get_groups_collection()
+        periodos = get_periodos_collection()
         
-        # ✅ Obtener matrícula del estudiante
+        # Obtener configuración del periodo activo para determinar el año lectivo
+        config = periodos.find_one({'activo': True}) or {}
+        anio_lectivo = config.get('anio_lectivo', '2026')
+        
+        # ✅ Obtener matrícula del estudiante del año lectivo actual
         matricula = matriculas.find_one({
             'id_estudiante': estudiante['_id'],
             'estado': 'activa',
-            'anio_lectivo': '2025'
+            'anio_lectivo': anio_lectivo
         })
+        
+        # Si no hay matrícula del año actual, buscar cualquier matrícula activa
+        if not matricula:
+            matricula = matriculas.find_one({
+                'id_estudiante': estudiante['_id'],
+                'estado': 'activa'
+            })
         
         if not matricula:
             return jsonify({'success': False, 'error': 'No se encontró matrícula activa'}), 404
         
-        print(f"✅ Matrícula encontrada")
+        # ✅ Validar que el periodo solicitado esté cerrado para el grupo
+        grupo_id = matricula.get('id_grupo')
+        grupo = grupos.find_one({'_id': grupo_id})
+        
+        if not grupo:
+            return jsonify({'success': False, 'error': 'Grupo no encontrado'}), 404
+        
+        periodos_cerrados = grupo.get('periodos_cerrados', [])
+        if periodo not in periodos_cerrados:
+            return jsonify({
+                'success': False,
+                'error': f'El periodo {periodo} no está cerrado. Solo se pueden generar boletines de periodos cerrados.'
+            }), 403
+        
+        print(f"✅ Matrícula encontrada (año: {anio_lectivo})")
+        print(f"✅ Periodo {periodo} está cerrado para el grupo")
         
         # Crear PDF en memoria
         buffer = BytesIO()
@@ -981,7 +1009,7 @@ def download_boletin():
         p.drawString(inch, y_position, f"Periodo Académico: {periodo}")
         y_position -= 0.4 * inch
         
-        p.drawString(inch, y_position, f"Año Lectivo: 2025")
+        p.drawString(inch, y_position, f"Año Lectivo: {anio_lectivo}")
         y_position -= 0.8 * inch
         
         # Tabla de calificaciones - Encabezados
@@ -1072,7 +1100,7 @@ def download_boletin():
             y_position -= 0.4 * inch
             
             p.setFont("Helvetica-Bold", 12)
-            p.drawString(inch, y_position, f"Promedio General del Periodo {periodo}:")
+            p.drawString(inch, y_position, f"Promedio General del Periodo {periodo}: ")
             p.drawString(3.5 * inch, y_position, f"{promedio_general:.2f}")
             
             # Estado general
