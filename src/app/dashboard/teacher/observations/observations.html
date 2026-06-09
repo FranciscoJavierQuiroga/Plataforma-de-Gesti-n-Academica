@@ -56,6 +56,10 @@
       <option value="todos">Todos los Grupos</option>
       <option *ngFor="let g of grupos" [value]="g._id">{{ g.name }}</option>
     </select>
+    <select *ngIf="filtros.grupo !== 'todos' && asignaciones.length > 1" [(ngModel)]="materiaSeleccionada" (ngModelChange)="aplicarFiltros()">
+      <option [ngValue]="null">Todas las Materias</option>
+      <option *ngFor="let a of asignaciones" [ngValue]="a">{{ a.nombre_curso }}</option>
+    </select>
     <select [(ngModel)]="filtros.categoria" (ngModelChange)="aplicarFiltros()">
       <option value="todas">Todas las Categorías</option>
       <option value="academica">Académica</option>
@@ -144,17 +148,27 @@
 
         <div class="form-group">
           <label>Grupo *</label>
-          <select [(ngModel)]="nuevaObs.course_id" (ngModelChange)="onGrupoChangeModal()"
+          <select [(ngModel)]="nuevaObs.group_id" (ngModelChange)="onGrupoChangeModal()"
             [disabled]="editandoId !== null">
             <option value="">Seleccionar grupo</option>
             <option *ngFor="let g of grupos" [value]="g._id">{{ g.name }}</option>
           </select>
-          <!-- AGREGAR MENSAJE SI NO HAY ESTUDIANTES -->
+          <small *ngIf="!nuevaObs.group_id" class="text-muted">
+            Primero selecciona un grupo
+          </small>
+        </div>
+
+        <div class="form-group" *ngIf="nuevaObs.group_id">
+          <label>Materia *</label>
+          <select [(ngModel)]="nuevaObs.course_id" (ngModelChange)="onMateriaChangeModal()"
+            [disabled]="editandoId !== null">
+            <option value="">Seleccionar materia</option>
+            <option *ngFor="let a of asignaciones" [value]="a.id_curso">{{ a.nombre_curso }}</option>
+          </select>
+          <small *ngIf="isHomeroomTeacher" class="text-muted">👨‍🏫 Director de grupo</small>
+          <small *ngIf="readonlyOnly" class="text-muted">⚠️ Solo lectura - No puedes crear observaciones en esta materia</small>
           <small *ngIf="estudiantes.length === 0 && nuevaObs.course_id" class="text-muted">
             No hay estudiantes en este grupo
-          </small>
-          <small *ngIf="!nuevaObs.course_id" class="text-muted">
-            Primero selecciona un grupo
           </small>
         </div>
 
@@ -215,7 +229,7 @@
         <button class="btn-outline" (click)="cerrarModal()" [disabled]="loading">
           Cancelar
         </button>
-        <button class="btn-primary" (click)="guardarObservacion()" [disabled]="loading">
+        <button class="btn-primary" (click)="guardarObservacion()" [disabled]="loading || readonlyOnly">
           <span *ngIf="!loading">{{ editandoId ? 'Actualizar' : 'Guardar' }}</span>
           <span *ngIf="loading">Guardando...</span>
         </button>

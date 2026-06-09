@@ -54,10 +54,22 @@ export default class GradesComponent implements OnInit {
   periodos = ['1', '2', '3', '4'];
   estudiantes: Estudiante[] = [];
 
+  // Materias
+  asignaciones: any[] = [];
+  materiaSeleccionada: any = null;
+  isHomeroomTeacher = false;
+  loadingAssignments = false;
+
   // Estados
   loading = false;
   guardando = false;
   error: string | null = null;
+
+  // Periodo activo
+  periodoActivo: any = null;
+  puedeCalificar = true;
+  fechaLimite: string | null = null;
+  mensajePeriodo: string | null = null;
 
   // Tipos de evaluación
   tiposEvaluacion = ['Parcial', 'Taller', 'Quiz', 'Proyecto', 'Final'];
@@ -72,6 +84,33 @@ export default class GradesComponent implements OnInit {
 
   ngOnInit() {
     this.cargarGrupos();
+    this.cargarPeriodoActivo();
+  }
+
+  cargarPeriodoActivo() {
+    this.api.getPeriodoActivo().subscribe({
+      next: (res: any) => {
+        if (res.success) {
+          this.periodoActivo = res.periodo;
+          this.puedeCalificar = res.puede_calificar;
+          this.periodoSeleccionado = res.periodo.periodo;
+          
+          if (res.periodo.fecha_limite_calificaciones) {
+            this.fechaLimite = new Date(res.periodo.fecha_limite_calificaciones).toLocaleDateString('es-CO');
+          }
+          
+          if (!this.puedeCalificar) {
+            this.mensajePeriodo = `La fecha límite para registrar calificaciones del periodo ${res.periodo.periodo} ha pasado (${this.fechaLimite})`;
+          } else {
+            this.mensajePeriodo = `Periodo ${res.periodo.periodo} activo - Fecha límite: ${this.fechaLimite}`;
+          }
+        }
+      },
+      error: (err) => {
+        console.warn('No se pudo cargar el periodo activo:', err);
+        this.mensajePeriodo = 'No hay periodo activo configurado';
+      }
+    });
   }
 
   cargarGrupos() {
@@ -92,8 +131,43 @@ export default class GradesComponent implements OnInit {
   }
 
   onGrupoChange() {
+    this.asignaciones = [];
+    this.materiaSeleccionada = null;
+    this.estudiantes = [];
+    this.isHomeroomTeacher = false;
     if (this.cursoSeleccionado) {
+      this.cargarAsignaciones();
+    }
+  }
+
+  cargarAsignaciones() {
+    if (!this.cursoSeleccionado) return;
+    this.loadingAssignments = true;
+    this.api.getTeacherGroupAssignments(this.cursoSeleccionado._id).subscribe({
+      next: (res: any) => {
+        if (res.success) {
+          this.asignaciones = res.assignments || [];
+          this.isHomeroomTeacher = res.is_homeroom_teacher || false;
+          // Si solo hay una materia, seleccionarla automáticamente
+          if (this.asignaciones.length === 1) {
+            this.materiaSeleccionada = this.asignaciones[0];
+            this.cargarCalificaciones();
+          }
+        }
+        this.loadingAssignments = false;
+      },
+      error: (err) => {
+        console.error('Error cargando asignaciones:', err);
+        this.loadingAssignments = false;
+      }
+    });
+  }
+
+  onMateriaChange() {
+    if (this.materiaSeleccionada) {
       this.cargarCalificaciones();
+    } else {
+      this.estudiantes = [];
     }
   }
 
@@ -105,9 +179,11 @@ export default class GradesComponent implements OnInit {
     this.loading = true;
     this.error = null;
 
-    this.api.getCourseGrades(this.cursoSeleccionado._id).subscribe({
+    const courseId = this.materiaSeleccionada?.id_curso;
+    this.api.getCourseGrades(this.cursoSeleccionado._id, courseId).subscribe({
       next: (res: any) => {
         if (res.success) {
+          this.isHomeroomTeacher = res.is_homeroom_teacher || false;
           this.estudiantes = res.students.map((student: any) => {
             const grades: Calificacion[] = student.grades || [];
             return {
@@ -151,6 +227,17 @@ export default class GradesComponent implements OnInit {
   }
 
   guardarCalificaciones() {
+    // Validar periodo activo
+    if (this.periodoActivo && String(this.periodoSeleccionado) !== String(this.periodoActivo.periodo)) {
+      this.alertService.warning(`Solo puedes registrar calificaciones del periodo activo (${this.periodoActivo.periodo})`);
+      return;
+    }
+
+    if (!this.puedeCalificar) {
+      this.alertService.error(`La fecha límite para registrar calificaciones ha pasado (${this.fechaLimite})`);
+      return;
+    }
+
     const tieneValor = (nota: number | undefined) =>
       nota !== undefined && nota !== null && !Number.isNaN(nota);
 
@@ -287,6 +374,56 @@ export default class GradesComponent implements OnInit {
       });
   }
 
+  cerrarPeriodo() {
+    if (!this.cursoSeleccionado || !this.periodoSeleccionado) {
+      this.alertService.warning('Selecciona un grupo y periodo');
+      return;
+    }
+    if (!this.isHomeroomTeacher) {
+      this.alertService.error('Solo el director de grupo puede cerrar periodos');
+      return;
+    }
+    this.api.closePeriod(this.cursoSeleccionado._id, this.periodoSeleccionado).subscribe({
+      next: (res: any) => {
+        if (res.success) {
+          this.alertService.success(res.message);
+          this.puedeCalificar = false;
+        } else {
+          this.alertService.error(res.error || 'Error al cerrar periodo');
+        }
+      },
+      error: (err: any) => {
+        console.error('Error cerrando periodo:', err);
+        this.alertService.error(err.error?.error || 'Error al cerrar periodo');
+      }
+    });
+  }
+
+  reabrirPeriodo() {
+    if (!this.cursoSeleccionado || !this.periodoSeleccionado) {
+      this.alertService.warning('Selecciona un grupo y periodo');
+      return;
+    }
+    if (!this.isHomeroomTeacher) {
+      this.alertService.error('Solo el director de grupo puede reabrir periodos');
+      return;
+    }
+    this.api.reopenPeriod(this.cursoSeleccionado._id, this.periodoSeleccionado).subscribe({
+      next: (res: any) => {
+        if (res.success) {
+          this.alertService.success(res.message);
+          this.cargarPeriodoActivo();
+        } else {
+          this.alertService.error(res.error || 'Error al reabrir periodo');
+        }
+      },
+      error: (err: any) => {
+        console.error('Error reabriendo periodo:', err);
+        this.alertService.error(err.error?.error || 'Error al reabrir periodo');
+      }
+    });
+  }
+
   goBack() {
     this.router.navigate(['/dashboard/teacher']);
   }
@@ -294,4 +431,5 @@ export default class GradesComponent implements OnInit {
   trackByEstudiante(index: number, estudiante: any): string { return estudiante.student_id || estudiante.enrollment_id || index; }
   trackByGrupo(index: number, grupo: any): string { return grupo._id || index; }
   trackByPeriodo(index: number, periodo: string): string { return periodo; }
+  trackByAssignment(index: number, assignment: any): string { return assignment.id_asignacion || index; }
 }

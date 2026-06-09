@@ -26,6 +26,17 @@
         <option *ngFor="let g of grupos" [ngValue]="g">{{ g.name }}</option>
       </select>
     </div>
+
+    <div class="field" *ngIf="grupoSeleccionado">
+      <label>Materia *</label>
+      <select [(ngModel)]="materiaSeleccionada" (ngModelChange)="onMateriaChange()">
+        <option [ngValue]="null">Seleccionar materia</option>
+        <option *ngFor="let a of asignaciones" [ngValue]="a">
+          {{ a.nombre_curso }} {{ !a.is_own ? '(Lectura)' : '' }}
+        </option>
+      </select>
+      <small *ngIf="isHomeroomTeacher">👨‍🏫 Director de grupo - Puede ver todas las materias</small>
+    </div>
     
     <div class="field">
       <label>Periodo</label>
@@ -46,10 +57,10 @@
     </div>
     
     <div class="field actions">
-      <button class="btn" (click)="marcarTodos('presente')" [disabled]="estudiantes.length === 0">
+      <button class="btn" (click)="marcarTodos('presente')" [disabled]="estudiantes.length === 0 || readonlyOnly">
         <span class="material-icons">check</span> Todos Presentes
       </button>
-      <button class="btn" (click)="marcarTodos('ausente')" [disabled]="estudiantes.length === 0">
+      <button class="btn" (click)="marcarTodos('ausente')" [disabled]="estudiantes.length === 0 || readonlyOnly">
         <span class="material-icons">close</span> Todos Ausentes
       </button>
     </div>
@@ -105,8 +116,17 @@
       <p><span class="material-icons">touch_app</span> Selecciona un grupo para comenzar</p>
     </div>
 
-    <div *ngIf="grupoSeleccionado && estudiantes.length === 0" class="empty-state">
+    <div *ngIf="grupoSeleccionado && !materiaSeleccionada" class="empty-state">
+      <p><span class="material-icons">touch_app</span> Selecciona una materia para comenzar</p>
+    </div>
+
+    <div *ngIf="grupoSeleccionado && materiaSeleccionada && estudiantes.length === 0" class="empty-state">
       <p><span class="material-icons">inbox</span> No hay estudiantes matriculados en este grupo</p>
+    </div>
+
+    <div *ngIf="readonlyOnly" class="alert alert-info">
+      <span class="material-icons">info</span>
+      Modo solo lectura - No puedes editar asistencia de materias que no impartes
     </div>
 
     <table class="table" *ngIf="estudiantes.length > 0">
@@ -123,7 +143,7 @@
           <td class="codigo">{{ e.codigo }}</td>
           <td class="nombre">{{ e.nombre }}</td>
           <td class="estado">
-            <select [(ngModel)]="e.estado" class="estado-select">
+            <select [(ngModel)]="e.estado" class="estado-select" [disabled]="readonlyOnly">
               <option value="presente">Presente</option>
               <option value="ausente">Ausente</option>
               <option value="tarde">Tarde</option>
@@ -136,6 +156,7 @@
               [(ngModel)]="e.observaciones" 
               placeholder="Opcional"
               class="obs-input"
+              [disabled]="readonlyOnly"
             />
           </td>
         </tr>
@@ -158,7 +179,7 @@
         <button 
           class="btn primary" 
           (click)="guardarAsistencia()"
-          [disabled]="saving">
+          [disabled]="saving || readonlyOnly">
           <span *ngIf="!saving"><span class="material-icons">save</span> Guardar Asistencia</span>
           <span *ngIf="saving"><span class="material-icons">hourglass</span> Guardando...</span>
         </button>

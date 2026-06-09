@@ -16,7 +16,7 @@ import { AlertService } from '../../services/alert.service';
 export default class AdminComponent implements OnInit {
   loading = false;
   error: string | null = null;
-  activeView: 'dashboard' | 'students' | 'courses' | 'groups' | 'enrollments' | 'reports' = 'dashboard';
+  activeView: 'dashboard' | 'students' | 'courses' | 'groups' | 'enrollments' | 'reports' | 'periodos' = 'dashboard';
 
   adminName = 'Administrador';
 
@@ -51,6 +51,25 @@ export default class AdminComponent implements OnInit {
   selectedReport: string | null = null;
   reportData: any = null;
   loadingReport = false;
+
+  // Periodos
+  periodos: any[] = [];
+  loadingPeriodos = false;
+  showPeriodoForm = false;
+  editingPeriodo = false;
+  savingPeriodo = false;
+  currentYear = new Date().getFullYear();
+  periodoForm = {
+    _id: '',
+    nombre: '',
+    periodo: '1',
+    anio_lectivo: String(new Date().getFullYear()),
+    fecha_inicio: '',
+    fecha_fin: '',
+    fecha_limite_calificaciones: '',
+    nota_minima_aprobacion: 3.0,
+    limite_materias_reprobadas: 3
+  };
 
   constructor(
     private api: ApiService,
@@ -217,7 +236,7 @@ export default class AdminComponent implements OnInit {
 
   console.log('📊 Estadísticas actualizadas:', this.stats);
 }
-  changeView(view: 'dashboard' | 'students' | 'courses' | 'groups' | 'enrollments' | 'reports'): void {
+  changeView(view: 'dashboard' | 'students' | 'courses' | 'groups' | 'enrollments' | 'reports' | 'periodos'): void {
     console.log(`🔄 Cambiando a vista: ${view}`);
     this.activeView = view;
     this.selectedReport = null;
@@ -226,6 +245,9 @@ export default class AdminComponent implements OnInit {
     if (view === 'groups') {
       this.loadGroups();
       this.loadGroupStudentsList();
+    }
+    if (view === 'periodos') {
+      this.loadPeriodos();
     }
   }
 
@@ -466,6 +488,164 @@ export default class AdminComponent implements OnInit {
         }
       });
     }
+  }
+
+  // ==========================================
+  //   PERIODOS
+  // ==========================================
+
+  loadPeriodos(): void {
+    this.loadingPeriodos = true;
+    this.api.getAdminPeriodos().subscribe({
+      next: (res: any) => {
+        if (res.success) {
+          this.periodos = res.periodos || [];
+        } else {
+          this.periodos = [];
+        }
+        this.loadingPeriodos = false;
+      },
+      error: (err: any) => {
+        console.error('❌ Error cargando periodos:', err);
+        this.periodos = [];
+        this.loadingPeriodos = false;
+      }
+    });
+  }
+
+  cancelPeriodoForm(): void {
+    this.showPeriodoForm = false;
+    this.editingPeriodo = false;
+    this.resetPeriodoForm();
+  }
+
+  resetPeriodoForm(): void {
+    this.periodoForm = {
+      _id: '',
+      nombre: '',
+      periodo: '1',
+      anio_lectivo: String(this.currentYear),
+      fecha_inicio: '',
+      fecha_fin: '',
+      fecha_limite_calificaciones: '',
+      nota_minima_aprobacion: 3.0,
+      limite_materias_reprobadas: 3
+    };
+  }
+
+  editarPeriodo(periodo: any): void {
+    this.periodoForm = {
+      _id: periodo._id,
+      nombre: periodo.nombre,
+      periodo: periodo.periodo,
+      anio_lectivo: periodo.anio_lectivo,
+      fecha_inicio: this.formatDateForInput(periodo.fecha_inicio),
+      fecha_fin: this.formatDateForInput(periodo.fecha_fin),
+      fecha_limite_calificaciones: this.formatDateForInput(periodo.fecha_limite_calificaciones),
+      nota_minima_aprobacion: periodo.nota_minima_aprobacion,
+      limite_materias_reprobadas: periodo.limite_materias_reprobadas
+    };
+    this.editingPeriodo = true;
+    this.showPeriodoForm = true;
+  }
+
+  formatDateForInput(date: any): string {
+    if (!date) return '';
+    const d = new Date(date);
+    return d.toISOString().split('T')[0];
+  }
+
+  savePeriodo(): void {
+    if (!this.periodoForm.nombre || !this.periodoForm.fecha_inicio || !this.periodoForm.fecha_fin) {
+      this.alertService.warning('Complete todos los campos obligatorios');
+      return;
+    }
+
+    this.savingPeriodo = true;
+
+    const data = {
+      nombre: this.periodoForm.nombre,
+      periodo: this.periodoForm.periodo,
+      anio_lectivo: this.periodoForm.anio_lectivo,
+      fecha_inicio: this.periodoForm.fecha_inicio,
+      fecha_fin: this.periodoForm.fecha_fin,
+      fecha_limite_calificaciones: this.periodoForm.fecha_limite_calificaciones || this.periodoForm.fecha_fin,
+      nota_minima_aprobacion: this.periodoForm.nota_minima_aprobacion,
+      limite_materias_reprobadas: this.periodoForm.limite_materias_reprobadas
+    };
+
+    if (this.editingPeriodo && this.periodoForm._id) {
+      this.api.updatePeriodo(this.periodoForm._id, data).subscribe({
+        next: (res: any) => {
+          if (res.success) {
+            this.alertService.success('Periodo actualizado exitosamente');
+            this.showPeriodoForm = false;
+            this.editingPeriodo = false;
+            this.resetPeriodoForm();
+            this.loadPeriodos();
+          }
+          this.savingPeriodo = false;
+        },
+        error: (err: any) => {
+          console.error('❌ Error actualizando periodo:', err);
+          this.alertService.error('Error al actualizar el periodo');
+          this.savingPeriodo = false;
+        }
+      });
+    } else {
+      this.api.createPeriodo(data).subscribe({
+        next: (res: any) => {
+          if (res.success) {
+            this.alertService.success('Periodo creado exitosamente');
+            this.showPeriodoForm = false;
+            this.resetPeriodoForm();
+            this.loadPeriodos();
+          }
+          this.savingPeriodo = false;
+        },
+        error: (err: any) => {
+          console.error('❌ Error creando periodo:', err);
+          this.alertService.error('Error al crear el periodo');
+          this.savingPeriodo = false;
+        }
+      });
+    }
+  }
+
+  activarPeriodo(id: string): void {
+    this.api.activarPeriodo(id).subscribe({
+      next: (res: any) => {
+        if (res.success) {
+          this.alertService.success('Periodo activado exitosamente');
+          this.loadPeriodos();
+        }
+      },
+      error: (err: any) => {
+        console.error('❌ Error activando periodo:', err);
+        this.alertService.error('Error al activar el periodo');
+      }
+    });
+  }
+
+  eliminarPeriodo(id: string): void {
+    if (confirm('¿Estás seguro de eliminar este periodo?')) {
+      this.api.deletePeriodo(id).subscribe({
+        next: (res: any) => {
+          if (res.success) {
+            this.alertService.success('Periodo eliminado exitosamente');
+            this.loadPeriodos();
+          }
+        },
+        error: (err: any) => {
+          console.error('❌ Error eliminando periodo:', err);
+          this.alertService.error('Error al eliminar el periodo');
+        }
+      });
+    }
+  }
+
+  trackByPeriodo(index: number, periodo: any): string {
+    return periodo._id || index;
   }
 
   trackByStudent(index: number, student: any): string {

@@ -130,6 +130,11 @@ def get_asignaciones_collection():
     return DatabaseConfig.get_collection("asignaciones_docentes")
 
 
+def get_periodos_collection():
+    """Obtener coleccion de periodos academicos"""
+    return DatabaseConfig.get_collection("periodos")
+
+
 # Funciones de utilidad para conversión de datos
 def serialize_doc(doc):
     """Convierte un documento MongoDB a formato JSON serializable"""

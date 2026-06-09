@@ -68,6 +68,7 @@ export default class ObservationsComponent implements OnInit {
   editandoId: string | null = null;
   nuevaObs = {
     student_id: '',
+    group_id: '',
     course_id: '',
     tipo: 'positiva',
     categoria: 'academica',
@@ -78,6 +79,13 @@ export default class ObservationsComponent implements OnInit {
   };
 
   estudiantes: any[] = [];
+  
+  // Materias
+  asignaciones: any[] = [];
+  materiaSeleccionada: any = null;
+  isHomeroomTeacher = false;
+  loadingAssignments = false;
+  readonlyOnly = false;
 
   constructor(
     private api: ApiService,
@@ -111,7 +119,7 @@ export default class ObservationsComponent implements OnInit {
       filters.tipo = this.filtros.tipo;
     }
     if (this.filtros.grupo !== 'todos') {
-      filters.course_id = this.filtros.grupo;
+      filters.group_id = this.filtros.grupo;
     }
     if (this.filtros.categoria !== 'todas') {
       filters.categoria = this.filtros.categoria;
@@ -122,6 +130,7 @@ export default class ObservationsComponent implements OnInit {
         if (res.success) {
           this.observaciones = res.observations;
           this.resumen = res.statistics;
+          this.isHomeroomTeacher = res.is_homeroom_teacher || false;
           this.aplicarFiltroTexto();
         }
         this.loading = false;
@@ -153,83 +162,126 @@ export default class ObservationsComponent implements OnInit {
   }
 
   onGrupoChange() {
+    this.asignaciones = [];
+    this.materiaSeleccionada = null;
     if (this.filtros.grupo !== 'todos') {
-      // Cargar estudiantes del grupo seleccionado
-      this.api.getCourseGrades(this.filtros.grupo).subscribe({
-        next: (res: any) => {
-          if (res.success && res.students) {
-            this.estudiantes = res.students;
-          }
-        },
-        error: (err: any) => {
-          console.error('Error cargando estudiantes:', err);
+      this.cargarAsignacionesGrupo(this.filtros.grupo);
+    }
+  }
+
+  cargarAsignacionesGrupo(grupoId: string) {
+    this.loadingAssignments = true;
+    this.api.getTeacherGroupAssignments(grupoId).subscribe({
+      next: (res: any) => {
+        if (res.success) {
+          this.asignaciones = res.assignments || [];
+          this.isHomeroomTeacher = res.is_homeroom_teacher || false;
         }
-      });
+        this.loadingAssignments = false;
+      },
+      error: (err: any) => {
+        console.error('Error cargando asignaciones:', err);
+        this.loadingAssignments = false;
+      }
+    });
+  }
+
+  onMateriaChange() {
+    if (this.materiaSeleccionada) {
+      this.cargarEstudiantesDelGrupo(this.filtros.grupo, this.materiaSeleccionada.id_curso);
     }
   }
 
   nuevaObservacion() {
-  this.editandoId = null;
-  
-  // ✅ Si hay grupos disponibles, preseleccionar el primero
-  const grupoInicial = this.grupos.length > 0 ? this.grupos[0]._id : '';
-  
-  this.nuevaObs = {
-    student_id: '',
-    course_id: grupoInicial,  // ✅ Preseleccionar primer grupo
-    tipo: 'positiva',
-    categoria: 'academica',
-    descripcion: '',
-    seguimiento: '',
-    gravedad: 'leve',
-    notificado_acudiente: false
-  };
-  
-  this.showModal = true;
-  
-  // ✅ Cargar estudiantes del grupo preseleccionado
-  if (grupoInicial) {
-    this.cargarEstudiantesDelGrupo(grupoInicial);
-  }
-}
-cargarEstudiantesDelGrupo(grupoId: string) {
-  if (!grupoId) {
-    this.estudiantes = [];
-    return;
-  }
-
-  console.log('📚 Cargando estudiantes del grupo:', grupoId);
-
-  this.api.getCourseGrades(grupoId).subscribe({
-    next: (res: any) => {
-      if (res.success && res.students) {
-        this.estudiantes = res.students;
-        console.log(`✅ ${this.estudiantes.length} estudiantes cargados`);
-      } else {
-        this.estudiantes = [];
-        console.warn('⚠️ No se encontraron estudiantes en el grupo');
-      }
-    },
-    error: (err: any) => {
-      console.error('❌ Error cargando estudiantes:', err);
-      this.estudiantes = [];
-      this.error = 'Error al cargar estudiantes del grupo';
+    this.editandoId = null;
+    this.readonlyOnly = false;
+    
+    const grupoInicial = this.grupos.length > 0 ? this.grupos[0]._id : '';
+    
+    this.nuevaObs = {
+      student_id: '',
+      group_id: grupoInicial,
+      course_id: '',
+      tipo: 'positiva',
+      categoria: 'academica',
+      descripcion: '',
+      seguimiento: '',
+      gravedad: 'leve',
+      notificado_acudiente: false
+    };
+    
+    this.showModal = true;
+    
+    if (grupoInicial) {
+      this.cargarAsignacionesModal(grupoInicial);
     }
-  });
-}
+  }
 
-onGrupoChangeModal() {
-  // ✅ Llamar cuando cambia el grupo en el modal de nueva observación
-  this.cargarEstudiantesDelGrupo(this.nuevaObs.course_id);
-  
-  // Limpiar estudiante seleccionado
-  this.nuevaObs.student_id = '';
-}
+  cargarAsignacionesModal(grupoId: string) {
+    this.api.getTeacherGroupAssignments(grupoId).subscribe({
+      next: (res: any) => {
+        if (res.success) {
+          this.asignaciones = res.assignments || [];
+          this.isHomeroomTeacher = res.is_homeroom_teacher || false;
+          if (this.asignaciones.length === 1) {
+            this.nuevaObs.course_id = this.asignaciones[0].id_curso;
+            this.cargarEstudiantesDelGrupo(grupoId, this.asignaciones[0].id_curso);
+          }
+        }
+      },
+      error: (err: any) => {
+        console.error('Error cargando asignaciones:', err);
+      }
+    });
+  }
+
+  cargarEstudiantesDelGrupo(grupoId: string, courseId?: string) {
+    if (!grupoId) {
+      this.estudiantes = [];
+      return;
+    }
+
+    console.log('📚 Cargando estudiantes del grupo:', grupoId, 'materia:', courseId);
+
+    this.api.getCourseGrades(grupoId, courseId).subscribe({
+      next: (res: any) => {
+        if (res.success && res.students) {
+          this.estudiantes = res.students;
+          console.log(`✅ ${this.estudiantes.length} estudiantes cargados`);
+        } else {
+          this.estudiantes = [];
+          console.warn('⚠️ No se encontraron estudiantes en el grupo');
+        }
+      },
+      error: (err: any) => {
+        console.error('❌ Error cargando estudiantes:', err);
+        this.estudiantes = [];
+        this.error = 'Error al cargar estudiantes del grupo';
+      }
+    });
+  }
+
+  onGrupoChangeModal() {
+    this.nuevaObs.course_id = '';
+    this.nuevaObs.student_id = '';
+    this.estudiantes = [];
+    this.cargarAsignacionesModal(this.nuevaObs.group_id);
+  }
+
+  onMateriaChangeModal() {
+    const asignacion = this.asignaciones.find(a => a.id_curso === this.nuevaObs.course_id);
+    if (asignacion) {
+      this.readonlyOnly = this.isHomeroomTeacher && !asignacion.is_own;
+    }
+    this.nuevaObs.student_id = '';
+    this.cargarEstudiantesDelGrupo(this.nuevaObs.group_id, this.nuevaObs.course_id);
+  }
 
   editar(obs: Observacion) {
     this.editandoId = obs._id;
     this.nuevaObs = {
       student_id: obs.id_estudiante || '',
+      group_id: obs.id_curso || '',
       course_id: obs.id_curso || '',
       tipo: obs.tipo,
       categoria: obs.categoria,

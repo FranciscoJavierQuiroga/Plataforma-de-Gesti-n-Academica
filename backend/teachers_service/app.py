@@ -170,6 +170,97 @@ def token_required(rol_requerido):
         return decorated
     return decorator
 
+
+def get_teacher_docente():
+    """Obtener el documento del docente desde el token actual.
+    Retorna None si no se encuentra.
+    """
+    try:
+        teacher_email = g.userinfo.get('email') or g.userinfo.get('preferred_username')
+        if teacher_email and '@' not in teacher_email:
+            teacher_email = f"{teacher_email}@colegio.edu.co"
+        teacher_sub = g.userinfo.get('sub')
+        usuarios = get_usuarios_collection()
+        docente = usuarios.find_one({
+            'correo': teacher_email,
+            'rol': 'docente',
+            'activo': True
+        })
+        if not docente:
+            docente = usuarios.find_one({
+                'keycloak_id': teacher_sub,
+                'rol': 'docente',
+                'activo': True
+            })
+        if not docente:
+            teacher_obj_id = string_to_objectid(teacher_sub)
+            if teacher_obj_id:
+                docente = usuarios.find_one({
+                    '_id': teacher_obj_id,
+                    'rol': 'docente',
+                    'activo': True
+                })
+        return docente
+    except Exception as e:
+        print(f"❌ Error en get_teacher_docente: {e}")
+        return None
+
+
+def check_group_access(docente, group_id):
+    """Verificar si el docente tiene acceso a un grupo.
+    Retorna un dict con:
+      - access: bool (True si tiene acceso)
+      - is_homeroom_teacher: bool
+      - assignments: list (asignaciones del docente en el grupo)
+      - error: str (mensaje de error si access=False)
+    """
+    try:
+        grupos = get_groups_collection()
+        asignaciones = get_asignaciones_collection()
+        grupo_obj_id = string_to_objectid(group_id)
+        if not grupo_obj_id:
+            return {'access': False, 'error': 'ID de grupo inválido'}
+        
+        grupo = grupos.find_one({'_id': grupo_obj_id})
+        if not grupo:
+            return {'access': False, 'error': 'Grupo no encontrado'}
+        
+        # Verificar si es director de grupo
+        is_homeroom = False
+        director_id = grupo.get('director_grupo')
+        if director_id and docente and director_id == docente['_id']:
+            is_homeroom = True
+        
+        # Obtener asignaciones del docente en este grupo
+        docente_assignments = []
+        if docente:
+            docente_assignments = list(asignaciones.find({
+                'id_docente': docente['_id'],
+                'id_grupo': grupo_obj_id,
+                'activo': True
+            }))
+        
+        # Tiene acceso si es director de grupo o tiene asignaciones
+        if is_homeroom or docente_assignments:
+            return {
+                'access': True,
+                'is_homeroom_teacher': is_homeroom,
+                'assignments': docente_assignments,
+                'grupo': grupo,
+                'grupo_obj_id': grupo_obj_id
+            }
+        else:
+            return {
+                'access': False,
+                'error': 'No tienes asignaturas asignadas en este grupo'
+            }
+    except Exception as e:
+        print(f"❌ Error en check_group_access: {e}")
+        import traceback
+        traceback.print_exc()
+        return {'access': False, 'error': str(e)}
+
+
 @app.route('/')
 def home():
     return jsonify({
@@ -841,49 +932,40 @@ def get_course_grades(course_id):
 def get_group_grades(group_id):
     """Obtener calificaciones de un grupo (todas las asignaturas del docente en ese grupo)"""
     try:
-        # Convertir ID a ObjectId
-        grupo_obj_id = string_to_objectid(group_id)
-        if not grupo_obj_id:
-            return jsonify({'success': False, 'error': 'ID de grupo inválido'}), 400
-        
-        # Obtener email del docente
-        teacher_email = g.userinfo.get('email') or g.userinfo.get('preferred_username')
-        if teacher_email and '@' not in teacher_email:
-            teacher_email = f"{teacher_email}@colegio.edu.co"
-        
-        teacher_sub = g.userinfo.get('sub')
-        
-        usuarios = get_usuarios_collection()
-        docente = usuarios.find_one({
-            'correo': teacher_email,
-            'rol': 'docente',
-            'activo': True
-        })
-        
+        docente = get_teacher_docente()
         if not docente:
             return jsonify({'success': False, 'error': 'Docente no encontrado'}), 404
         
-        print(f"✅ Docente: {docente.get('nombres')} {docente.get('apellidos')}")
+        access_info = check_group_access(docente, group_id)
+        if not access_info['access']:
+            return jsonify({'success': False, 'error': access_info['error']}), 403
         
-        # Buscar asignaciones del docente en este grupo
-        from database.db_config import get_asignaciones_collection
-        
+        grupo_obj_id = access_info['grupo_obj_id']
         asignaciones = get_asignaciones_collection()
         matriculas = get_matriculas_collection()
+        grupos = get_groups_collection()
         
-        asignaciones_grupo = list(asignaciones.find({
-            'id_docente': docente['_id'],
-            'id_grupo': grupo_obj_id,
-            'activo': True
-        }))
+        # Obtener parámetro opcional course_id para filtrar por materia
+        course_id = request.args.get('course_id')
+        course_obj_id = string_to_objectid(course_id) if course_id else None
+        
+        # Obtener asignaciones a mostrar
+        if access_info['is_homeroom_teacher']:
+            # Director de grupo: obtener todas las asignaciones del grupo
+            query = {'id_grupo': grupo_obj_id, 'activo': True}
+            if course_obj_id:
+                query['id_curso'] = course_obj_id
+            asignaciones_grupo = list(asignaciones.find(query))
+        else:
+            # Profesor normal: solo sus asignaciones
+            asignaciones_grupo = access_info['assignments']
+            if course_obj_id:
+                asignaciones_grupo = [a for a in asignaciones_grupo if a['id_curso'] == course_obj_id]
         
         if not asignaciones_grupo:
-            return jsonify({
-                'success': False,
-                'error': 'No tienes asignaturas asignadas en este grupo'
-            }), 403
+            return jsonify({'success': False, 'error': 'No hay asignaturas disponibles'}), 403
         
-        print(f"📚 Encontradas {len(asignaciones_grupo)} asignaturas del docente en este grupo")
+        print(f"📚 Encontradas {len(asignaciones_grupo)} asignaturas en el grupo")
         
         # Obtener estudiantes matriculados en el grupo
         estudiantes_matriculados = list(matriculas.find({
@@ -895,21 +977,25 @@ def get_group_grades(group_id):
         
         # Formatear datos de estudiantes
         students_data = []
-        ids_asignaciones_docente = {a['_id'] for a in asignaciones_grupo}
+        ids_asignaciones = {a['_id'] for a in asignaciones_grupo}
+        ids_asignaciones_propias = {a['_id'] for a in access_info['assignments']}
+        
         for matricula in estudiantes_matriculados:
             student_info = matricula.get('estudiante_info', {})
             calificaciones = matricula.get('calificaciones', [])
             notas_docente = []
 
             for item in calificaciones:
-                if item.get('id_asignacion') in ids_asignaciones_docente:
+                if item.get('id_asignacion') in ids_asignaciones:
                     assignment_id = str(item.get('id_asignacion'))
                     periodo = item.get('periodo', '1')
+                    is_own = item.get('id_asignacion') in ids_asignaciones_propias
                     for idx, nota in enumerate(item.get('notas', [])):
                         nota_copy = dict(nota)
                         nota_copy['assignment_id'] = assignment_id
                         nota_copy['periodo'] = periodo
                         nota_copy['index'] = idx
+                        nota_copy['is_editable'] = is_own
                         notas_docente.append(nota_copy)
 
             # Calcular promedio
@@ -930,7 +1016,6 @@ def get_group_grades(group_id):
             })
         
         # Información del grupo
-        grupos = get_groups_collection()
         grupo = grupos.find_one({'_id': grupo_obj_id})
         
         return jsonify({
@@ -938,10 +1023,14 @@ def get_group_grades(group_id):
             'group_id': group_id,
             'group_name': grupo.get('nombre_grupo', '') if grupo else '',
             'grado': grupo.get('grado', '') if grupo else '',
+            'is_homeroom_teacher': access_info['is_homeroom_teacher'],
             'asignaturas': [
                 {
+                    'id_asignacion': str(asig['_id']),
+                    'id_curso': str(asig['id_curso']),
                     'nombre': asig['curso_info'].get('nombre_curso', ''),
-                    'codigo': asig['curso_info'].get('codigo_curso', '')
+                    'codigo': asig['curso_info'].get('codigo_curso', ''),
+                    'is_own': asig['_id'] in ids_asignaciones_propias
                 }
                 for asig in asignaciones_grupo
             ],
@@ -954,7 +1043,56 @@ def get_group_grades(group_id):
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
-    
+
+@app.route('/teacher/groups/<group_id>/assignments', methods=['GET'])
+@token_required('docente')
+def get_group_assignments(group_id):
+    """Obtener todas las asignaciones del docente en un grupo específico"""
+    try:
+        docente = get_teacher_docente()
+        if not docente:
+            return jsonify({'success': False, 'error': 'Docente no encontrado'}), 404
+        
+        access_info = check_group_access(docente, group_id)
+        if not access_info['access']:
+            return jsonify({'success': False, 'error': access_info['error']}), 403
+        
+        # Si es director de grupo, obtener TODAS las asignaciones del grupo
+        asignaciones = get_asignaciones_collection()
+        if access_info['is_homeroom_teacher']:
+            assignments = list(asignaciones.find({
+                'id_grupo': access_info['grupo_obj_id'],
+                'activo': True
+            }))
+        else:
+            assignments = access_info['assignments']
+        
+        result = []
+        for a in assignments:
+            result.append({
+                'id_asignacion': str(a['_id']),
+                'id_curso': str(a['id_curso']),
+                'nombre_curso': a.get('curso_info', {}).get('nombre_curso', ''),
+                'codigo_curso': a.get('curso_info', {}).get('codigo_curso', ''),
+                'periodo': a.get('periodo', '1'),
+                'salon_asignado': a.get('salon_asignado', ''),
+                'anio_lectivo': a.get('anio_lectivo', ''),
+                'is_own': a.get('id_docente') == docente['_id']
+            })
+        
+        return jsonify({
+            'success': True,
+            'group_id': group_id,
+            'is_homeroom_teacher': access_info['is_homeroom_teacher'],
+            'assignments': result,
+            'count': len(result)
+        }), 200
+    except Exception as e:
+        print(f"❌ Error en get_group_assignments: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/teacher/grades', methods=['POST'])
 @token_required('docente')
 def add_grade():
@@ -1214,6 +1352,46 @@ def bulk_upload_grades():
         if not docente:
             return jsonify({'success': False, 'error': 'Docente no encontrado'}), 404
         
+        # Validar periodo activo
+        from database.db_config import get_periodos_collection
+        periodos = get_periodos_collection()
+        periodo_activo = periodos.find_one({'activo': True})
+        
+        if not periodo_activo:
+            return jsonify({
+                'success': False,
+                'error': 'No hay periodo activo configurado. Contacte al administrador.'
+            }), 403
+        
+        # Validar que el periodo seleccionado sea el activo
+        if str(periodo) != str(periodo_activo['periodo']):
+            return jsonify({
+                'success': False,
+                'error': f"Solo puedes registrar calificaciones del periodo activo ({periodo_activo['periodo']}). Periodo seleccionado: {periodo}"
+            }), 403
+        
+        # Validar fecha limite
+        fecha_limite = periodo_activo.get('fecha_limite_calificaciones')
+        if fecha_limite:
+            if isinstance(fecha_limite, str):
+                fecha_limite = datetime.fromisoformat(fecha_limite.replace('Z', '+00:00'))
+            if datetime.utcnow() > fecha_limite:
+                return jsonify({
+                    'success': False,
+                    'error': f"La fecha limite para registrar calificaciones del periodo {periodo_activo['periodo']} ha pasado ({fecha_limite.strftime('%d/%m/%Y')})"
+                }), 403
+        
+        # Validar que el periodo no esté cerrado para el grupo
+        grupos = get_groups_collection()
+        grupo_obj_id = string_to_objectid(course_id)
+        if grupo_obj_id:
+            grupo = grupos.find_one({'_id': grupo_obj_id})
+            if grupo and periodo in grupo.get('periodos_cerrados', []):
+                return jsonify({
+                    'success': False,
+                    'error': f"El periodo {periodo} está cerrado para este grupo. No se pueden modificar calificaciones."
+                }), 403
+        
         from database.db_config import get_asignaciones_collection
         asignaciones_col = get_asignaciones_collection()
         matriculas = get_matriculas_collection()
@@ -1357,6 +1535,159 @@ def bulk_upload_grades():
         }), 200 if failed == 0 else 207
         
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/teacher/groups/<group_id>/close-period', methods=['POST'])
+@token_required('docente')
+def close_period(group_id):
+    """Cerrar un periodo para un grupo (solo director de grupo)"""
+    try:
+        data = request.get_json()
+        periodo = data.get('periodo')
+        
+        if not periodo:
+            return jsonify({'success': False, 'error': 'Se requiere periodo'}), 400
+        
+        docente = get_teacher_docente()
+        if not docente:
+            return jsonify({'success': False, 'error': 'Docente no encontrado'}), 404
+        
+        # Verificar acceso al grupo
+        access_info = check_group_access(docente, group_id)
+        if not access_info['access']:
+            return jsonify({'success': False, 'error': access_info['error']}), 403
+        
+        # Verificar que es director de grupo
+        if not access_info['is_homeroom_teacher']:
+            return jsonify({'success': False, 'error': 'Solo el director de grupo puede cerrar periodos'}), 403
+        
+        grupos = get_groups_collection()
+        grupo_obj_id = access_info['grupo_obj_id']
+        
+        # Verificar que todas las materias tienen calificaciones
+        asignaciones = get_asignaciones_collection()
+        asignaciones_grupo = list(asignaciones.find({
+            'id_grupo': grupo_obj_id,
+            'activo': True
+        }))
+        
+        matriculas = get_matriculas_collection()
+        estudiantes_matriculados = list(matriculas.find({
+            'id_grupo': grupo_obj_id,
+            'estado': 'activa'
+        }))
+        
+        # Verificar que cada estudiante tiene calificaciones para cada materia en el periodo
+        materias_sin_calificaciones = []
+        for asignacion in asignaciones_grupo:
+            assignment_id = asignacion['_id']
+            curso_nombre = asignacion.get('curso_info', {}).get('nombre_curso', 'Sin nombre')
+            
+            for matricula in estudiantes_matriculados:
+                calificaciones = matricula.get('calificaciones', [])
+                tiene_calificacion = False
+                for c in calificaciones:
+                    if c.get('id_asignacion') == assignment_id and c.get('periodo') == periodo:
+                        if c.get('notas', []):
+                            tiene_calificacion = True
+                            break
+                
+                if not tiene_calificacion:
+                    estudiante_info = matricula.get('estudiante_info', {})
+                    estudiante_nombre = f"{estudiante_info.get('nombres', '')} {estudiante_info.get('apellidos', '')}"
+                    materias_sin_calificaciones.append({
+                        'estudiante': estudiante_nombre,
+                        'materia': curso_nombre
+                    })
+        
+        if materias_sin_calificaciones:
+            return jsonify({
+                'success': False,
+                'error': 'No se pueden cerrar periodos con calificaciones pendientes',
+                'pending': materias_sin_calificaciones
+            }), 400
+        
+        # Cerrar el periodo
+        grupos.update_one(
+            {'_id': grupo_obj_id},
+            {'$addToSet': {'periodos_cerrados': periodo}}
+        )
+        
+        # Registrar auditoría
+        registrar_auditoria(
+            id_usuario=docente['_id'],
+            accion='cerrar_periodo',
+            entidad_afectada='grupos',
+            id_entidad=group_id,
+            detalles=f"Periodo {periodo} cerrado para el grupo"
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': f'Periodo {periodo} cerrado exitosamente',
+            'group_id': group_id,
+            'periodo': periodo
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Error en close_period: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/teacher/groups/<group_id>/reopen-period', methods=['POST'])
+@token_required('docente')
+def reopen_period(group_id):
+    """Reabrir un periodo para un grupo (solo director de grupo)"""
+    try:
+        data = request.get_json()
+        periodo = data.get('periodo')
+        
+        if not periodo:
+            return jsonify({'success': False, 'error': 'Se requiere periodo'}), 400
+        
+        docente = get_teacher_docente()
+        if not docente:
+            return jsonify({'success': False, 'error': 'Docente no encontrado'}), 404
+        
+        # Verificar acceso al grupo
+        access_info = check_group_access(docente, group_id)
+        if not access_info['access']:
+            return jsonify({'success': False, 'error': access_info['error']}), 403
+        
+        # Verificar que es director de grupo
+        if not access_info['is_homeroom_teacher']:
+            return jsonify({'success': False, 'error': 'Solo el director de grupo puede reabrir periodos'}), 403
+        
+        grupos = get_groups_collection()
+        grupo_obj_id = access_info['grupo_obj_id']
+        
+        # Reabrir el periodo
+        grupos.update_one(
+            {'_id': grupo_obj_id},
+            {'$pull': {'periodos_cerrados': periodo}}
+        )
+        
+        # Registrar auditoría
+        registrar_auditoria(
+            id_usuario=docente['_id'],
+            accion='reabrir_periodo',
+            entidad_afectada='grupos',
+            id_entidad=group_id,
+            detalles=f"Periodo {periodo} reabierto para el grupo"
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': f'Periodo {periodo} reabierto exitosamente',
+            'group_id': group_id,
+            'periodo': periodo
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Error en reopen_period: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/teacher/groups/<group_id>/pdf-report', methods=['GET'])
@@ -1658,18 +1989,26 @@ def download_group_cards_pdf(group_id):
 @app.route('/teacher/attendance', methods=['GET'])
 @token_required('docente')
 def get_attendance_by_course():
-    """Obtener asistencia de un curso en una fecha específica"""
+    """Obtener asistencia de un curso en una fecha específica.
+    
+    Parámetros:
+      - group_id (requerido): ID del grupo
+      - fecha (requerido): Fecha en formato YYYY-MM-DD
+      - course_id (opcional): ID del curso/materia específica
+    """
     try:
-        course_id = request.args.get('course_id')
+        group_id = request.args.get('group_id')
         fecha = request.args.get('fecha')  # Formato: YYYY-MM-DD
+        course_id = request.args.get('course_id')  # ID del curso/materia
         
-        if not course_id or not fecha:
+        # Validar parámetros
+        if not group_id or not fecha:
             return jsonify({
                 'success': False,
-                'error': 'Se requieren course_id y fecha'
+                'error': 'Se requieren group_id y fecha'
             }), 400
         
-        grupo_obj_id = string_to_objectid(course_id)
+        grupo_obj_id = string_to_objectid(group_id)
         if not grupo_obj_id:
             return jsonify({'success': False, 'error': 'ID de grupo inválido'}), 400
 
@@ -1679,50 +2018,123 @@ def get_attendance_by_course():
         except ValueError:
             return jsonify({'success': False, 'error': 'Formato de fecha inválido'}), 400
 
-        # Get teacher's assignment for this group
-        teacher_email = g.userinfo.get('email') or g.userinfo.get('preferred_username')
-        usuarios = get_usuarios_collection()
-        docente = usuarios.find_one({
-            'correo': teacher_email,
-            'rol': 'docente',
-            'activo': True
-        })
-
+        # Obtener docente y verificar acceso
+        docente = get_teacher_docente()
         if not docente:
             return jsonify({'success': False, 'error': 'Docente no encontrado'}), 404
 
-        from database.db_config import get_asignaciones_collection
+        # Verificar acceso al grupo
+        grupos = get_groups_collection()
+        grupo = grupos.find_one({'_id': grupo_obj_id})
+        if not grupo:
+            return jsonify({'success': False, 'error': 'Grupo no encontrado'}), 404
+
+        # Verificar si es director de grupo
+        is_homeroom = False
+        director_id = grupo.get('director_grupo')
+        if director_id and director_id == docente['_id']:
+            is_homeroom = True
+
         asignaciones = get_asignaciones_collection()
-        asignacion = asignaciones.find_one({
-            'id_grupo': grupo_obj_id,
-            'id_docente': docente['_id'],
-            'activo': True
-        })
-
-        if not asignacion:
-            return jsonify({'success': False, 'error': 'No tienes asignación para este grupo'}), 403
-
-        curso_obj_id = asignacion['id_curso']
         asistencia = get_asistencia_collection()
-
-        # Buscar registro de asistencia
-        registro = asistencia.find_one({
-            'id_curso': curso_obj_id,
-            'fecha': fecha_obj
-        })
         
-        if registro:
+        # Si se especifica course_id, buscar esa materia específica
+        if course_id:
+            curso_obj_id = string_to_objectid(course_id)
+            if not curso_obj_id:
+                return jsonify({'success': False, 'error': 'ID de curso inválido'}), 400
+            
+            # Verificar que el curso existe en este grupo
+            asignacion = asignaciones.find_one({
+                'id_grupo': grupo_obj_id,
+                'id_curso': curso_obj_id,
+                'activo': True
+            })
+            
+            if not asignacion:
+                return jsonify({'success': False, 'error': 'Curso no encontrado en este grupo'}), 404
+            
+            # Verificar que el docente tiene permiso (es director o imparte esta materia)
+            if not is_homeroom:
+                asignacion_docente = asignaciones.find_one({
+                    'id_grupo': grupo_obj_id,
+                    'id_curso': curso_obj_id,
+                    'id_docente': docente['_id'],
+                    'activo': True
+                })
+                if not asignacion_docente:
+                    return jsonify({'success': False, 'error': 'No tienes permiso para ver este curso'}), 403
+            
+            # Buscar asistencia de esa materia
+            registro = asistencia.find_one({
+                'id_curso': curso_obj_id,
+                'fecha': fecha_obj
+            })
+            
+            if registro:
+                return jsonify({
+                    'success': True,
+                    'is_homeroom_teacher': is_homeroom,
+                    'attendance': serialize_doc(registro)
+                }), 200
+            else:
+                return jsonify({
+                    'success': True,
+                    'is_homeroom_teacher': is_homeroom,
+                    'attendance': None,
+                    'message': 'No hay registro de asistencia para esta fecha'
+                }), 200
+        
+        # Si NO se especifica course_id, buscar todas las asistencias del grupo
+        if is_homeroom:
+            # Director de grupo: obtener todas las asistencias del grupo
+            asignaciones_grupo = list(asignaciones.find({
+                'id_grupo': grupo_obj_id,
+                'activo': True
+            }))
+            
+            ids_cursos = [a['id_curso'] for a in asignaciones_grupo]
+            registros = list(asistencia.find({
+                'id_curso': {'$in': ids_cursos},
+                'fecha': fecha_obj
+            }))
+            
             return jsonify({
                 'success': True,
-                'attendance': serialize_doc(registro)
+                'is_homeroom_teacher': True,
+                'attendance_list': [serialize_doc(r) for r in registros],
+                'count': len(registros)
             }), 200
         else:
-            # Si no existe, devolver estructura vacía
-            return jsonify({
-                'success': True,
-                'attendance': None,
-                'message': 'No hay registro de asistencia para esta fecha'
-            }), 200
+            # Profesor normal: buscar su asignación (solo una)
+            asignacion = asignaciones.find_one({
+                'id_grupo': grupo_obj_id,
+                'id_docente': docente['_id'],
+                'activo': True
+            })
+            
+            if not asignacion:
+                return jsonify({'success': False, 'error': 'No tienes asignación para este grupo'}), 403
+            
+            curso_obj_id = asignacion['id_curso']
+            registro = asistencia.find_one({
+                'id_curso': curso_obj_id,
+                'fecha': fecha_obj
+            })
+            
+            if registro:
+                return jsonify({
+                    'success': True,
+                    'is_homeroom_teacher': False,
+                    'attendance': serialize_doc(registro)
+                }), 200
+            else:
+                return jsonify({
+                    'success': True,
+                    'is_homeroom_teacher': False,
+                    'attendance': None,
+                    'message': 'No hay registro de asistencia para esta fecha'
+                }), 200
         
     except Exception as e:
         print(f"❌ Error en get_attendance_by_course: {e}")
@@ -1741,7 +2153,7 @@ def save_attendance():
             return jsonify({'success': False, 'error': 'No se proporcionaron datos'}), 400
         
         # Validar campos requeridos
-        required_fields = ['course_id', 'fecha', 'registros']
+        required_fields = ['group_id', 'course_id', 'fecha', 'registros']
         for field in required_fields:
             if field not in data:
                 return jsonify({
@@ -1749,78 +2161,56 @@ def save_attendance():
                     'error': f'El campo {field} es requerido'
                 }), 400
         
-        # 🔧 CORRECCIÓN: Obtener email del token correctamente
-        teacher_email = g.userinfo.get('email') or g.userinfo.get('preferred_username')
-        teacher_sub = g.userinfo.get('sub')
-        
-        print(f"🔍 Datos del token:")
-        print(f"   Email: {teacher_email}")
-        print(f"   Sub: {teacher_sub}")
-        print(f"   UserInfo completo: {g.userinfo}")
-        
-        usuarios = get_usuarios_collection()
-        
-        # Buscar docente por email primero
-        docente = usuarios.find_one({
-            'correo': teacher_email,
-            'rol': 'docente',
-            'activo': True
-        })
-        
-        # Si no se encuentra por email, intentar por keycloak_id
+        # Obtener docente
+        docente = get_teacher_docente()
         if not docente:
-            print(f"⚠️ No se encontró por email, intentando por keycloak_id...")
-            docente = usuarios.find_one({
-                'keycloak_id': teacher_sub,
-                'rol': 'docente',
-                'activo': True
-            })
+            return jsonify({'success': False, 'error': 'Docente no encontrado'}), 404
         
-        # Si aún no se encuentra, intentar por _id (si el sub es un ObjectId válido)
-        if not docente:
-            print(f"⚠️ No se encontró por keycloak_id, intentando por _id...")
-            teacher_obj_id = string_to_objectid(teacher_sub)
-            if teacher_obj_id:
-                docente = usuarios.find_one({
-                    '_id': teacher_obj_id,
-                    'rol': 'docente',
-                    'activo': True
-                })
+        # Convertir IDs
+        grupo_obj_id = string_to_objectid(data['group_id'])
+        curso_obj_id = string_to_objectid(data['course_id'])
         
-        if not docente:
-            print(f"❌ Docente no encontrado en la base de datos")
-            print(f"   Email buscado: {teacher_email}")
-            print(f"   Sub buscado: {teacher_sub}")
-            return jsonify({
-                'success': False,
-                'error': 'Docente no encontrado en la base de datos'
-            }), 404
-        
-        print(f"✅ Docente encontrado: {docente.get('nombres')} {docente.get('apellidos')}")
-        
-        # Convertir grupo_id (frontend envia group_id como course_id)
-        grupo_obj_id = string_to_objectid(data['course_id'])
-        if not grupo_obj_id:
-            return jsonify({'success': False, 'error': 'ID de grupo inválido'}), 400
+        if not grupo_obj_id or not curso_obj_id:
+            return jsonify({'success': False, 'error': 'IDs inválidos'}), 400
 
-        # Resolver curso desde la asignación del docente para este grupo
-        from database.db_config import get_asignaciones_collection
+        # Verificar acceso al grupo
+        grupos = get_groups_collection()
+        grupo = grupos.find_one({'_id': grupo_obj_id})
+        if not grupo:
+            return jsonify({'success': False, 'error': 'Grupo no encontrado'}), 404
+
+        # Verificar si es director de grupo
+        is_homeroom = False
+        director_id = grupo.get('director_grupo')
+        if director_id and director_id == docente['_id']:
+            is_homeroom = True
+
+        # Verificar que el curso existe en este grupo
         asignaciones = get_asignaciones_collection()
         asignacion = asignaciones.find_one({
             'id_grupo': grupo_obj_id,
-            'id_docente': docente['_id'],
+            'id_curso': curso_obj_id,
             'activo': True
         })
+        
         if not asignacion:
-            return jsonify({'success': False, 'error': 'No tienes asignación para este grupo'}), 403
+            return jsonify({'success': False, 'error': 'Curso no encontrado en este grupo'}), 404
 
-        curso_obj_id = asignacion['id_curso']
+        # Verificar permisos: director de grupo puede editar, o debe ser su asignación
+        if not is_homeroom:
+            asignacion_docente = asignaciones.find_one({
+                'id_grupo': grupo_obj_id,
+                'id_curso': curso_obj_id,
+                'id_docente': docente['_id'],
+                'activo': True
+            })
+            if not asignacion_docente:
+                return jsonify({'success': False, 'error': 'Solo puede editar asistencia de las materias que imparte'}), 403
+
         cursos = get_cursos_collection()
         curso = cursos.find_one({'_id': curso_obj_id})
-
         if not curso:
             return jsonify({'success': False, 'error': 'Curso no encontrado'}), 404
-
         
         # Convertir fecha
         try:
@@ -1839,9 +2229,9 @@ def save_attendance():
             
             # Buscar información del estudiante desde la matrícula
             matricula = matriculas.find_one({
-            'id_estudiante': estudiante_id,
-            'id_grupo': asignacion['id_grupo'],
-            'estado': 'activa'
+                'id_estudiante': estudiante_id,
+                'id_grupo': grupo_obj_id,
+                'estado': 'activa'
             })
             
             if matricula:
@@ -2050,45 +2440,123 @@ def get_teacher_observations():
             return jsonify({'success': False, 'error': 'Docente no encontrado'}), 404
         
         # Construir query
-        query = {'id_docente': docente['_id']}
-        
-        if curso_id:
-            curso_obj_id = string_to_objectid(curso_id)
-            if curso_obj_id:
-                query['id_curso'] = curso_obj_id
-        
-        if tipo and tipo != 'todas':
-            query['tipo'] = tipo.lower()
-        
-        if categoria:
-            query['categoria'] = categoria
-        
-        if estudiante_id:
-            estudiante_obj_id = string_to_objectid(estudiante_id)
-            if estudiante_obj_id:
-                query['id_estudiante'] = estudiante_obj_id
-        
         observaciones = get_observaciones_collection()
+        asignaciones = get_asignaciones_collection()
         
-        # Obtener observaciones ordenadas por fecha descendente
-        resultado = list(observaciones.find(query).sort('fecha', -1))
+        # Verificar si se filtra por grupo
+        group_id = request.args.get('group_id')
         
-        # Calcular estadísticas
-        total = len(resultado)
-        positivas = len([o for o in resultado if o.get('tipo') == 'positiva'])
-        negativas = len([o for o in resultado if o.get('tipo') == 'negativa'])
-        neutrales = len([o for o in resultado if o.get('tipo') == 'neutral'])
-        
-        return jsonify({
-            'success': True,
-            'observations': [serialize_doc(o) for o in resultado],
-            'statistics': {
-                'total': total,
-                'positivas': positivas,
-                'negativas': negativas,
-                'neutrales': neutrales
-            }
-        }), 200
+        if group_id:
+            grupo_obj_id = string_to_objectid(group_id)
+            if not grupo_obj_id:
+                return jsonify({'success': False, 'error': 'ID de grupo inválido'}), 400
+            
+            # Verificar acceso al grupo
+            grupos = get_groups_collection()
+            grupo = grupos.find_one({'_id': grupo_obj_id})
+            if not grupo:
+                return jsonify({'success': False, 'error': 'Grupo no encontrado'}), 404
+            
+            is_homeroom = False
+            director_id = grupo.get('director_grupo')
+            if director_id and director_id == docente['_id']:
+                is_homeroom = True
+            
+            # Obtener IDs de cursos del grupo
+            if is_homeroom:
+                asignaciones_grupo = list(asignaciones.find({
+                    'id_grupo': grupo_obj_id,
+                    'activo': True
+                }))
+            else:
+                asignaciones_grupo = list(asignaciones.find({
+                    'id_grupo': grupo_obj_id,
+                    'id_docente': docente['_id'],
+                    'activo': True
+                }))
+            
+            if not asignaciones_grupo:
+                return jsonify({'success': False, 'error': 'No tienes asignaturas en este grupo'}), 403
+            
+            ids_cursos = [a['id_curso'] for a in asignaciones_grupo]
+            
+            # Construir query combinada
+            query = {'id_curso': {'$in': ids_cursos}}
+            
+            if curso_id:
+                curso_obj_id = string_to_objectid(curso_id)
+                if curso_obj_id:
+                    query['id_curso'] = curso_obj_id
+            
+            if tipo and tipo != 'todas':
+                query['tipo'] = tipo.lower()
+            
+            if categoria:
+                query['categoria'] = categoria
+            
+            if estudiante_id:
+                estudiante_obj_id = string_to_objectid(estudiante_id)
+                if estudiante_obj_id:
+                    query['id_estudiante'] = estudiante_obj_id
+            
+            resultado = list(observaciones.find(query).sort('fecha', -1))
+            
+            # Calcular estadísticas
+            total = len(resultado)
+            positivas = len([o for o in resultado if o.get('tipo') == 'positiva'])
+            negativas = len([o for o in resultado if o.get('tipo') == 'negativa'])
+            neutrales = len([o for o in resultado if o.get('tipo') == 'neutral'])
+            
+            return jsonify({
+                'success': True,
+                'is_homeroom_teacher': is_homeroom,
+                'observations': [serialize_doc(o) for o in resultado],
+                'statistics': {
+                    'total': total,
+                    'positivas': positivas,
+                    'negativas': negativas,
+                    'neutrales': neutrales
+                }
+            }), 200
+        else:
+            # Comportamiento original: solo observaciones del docente
+            query = {'id_docente': docente['_id']}
+            
+            if curso_id:
+                curso_obj_id = string_to_objectid(curso_id)
+                if curso_obj_id:
+                    query['id_curso'] = curso_obj_id
+            
+            if tipo and tipo != 'todas':
+                query['tipo'] = tipo.lower()
+            
+            if categoria:
+                query['categoria'] = categoria
+            
+            if estudiante_id:
+                estudiante_obj_id = string_to_objectid(estudiante_id)
+                if estudiante_obj_id:
+                    query['id_estudiante'] = estudiante_obj_id
+            
+            resultado = list(observaciones.find(query).sort('fecha', -1))
+            
+            # Calcular estadísticas
+            total = len(resultado)
+            positivas = len([o for o in resultado if o.get('tipo') == 'positiva'])
+            negativas = len([o for o in resultado if o.get('tipo') == 'negativa'])
+            neutrales = len([o for o in resultado if o.get('tipo') == 'neutral'])
+            
+            return jsonify({
+                'success': True,
+                'is_homeroom_teacher': False,
+                'observations': [serialize_doc(o) for o in resultado],
+                'statistics': {
+                    'total': total,
+                    'positivas': positivas,
+                    'negativas': negativas,
+                    'neutrales': neutrales
+                }
+            }), 200
         
     except Exception as e:
         print(f"❌ Error en get_teacher_observations: {e}")
@@ -2141,11 +2609,21 @@ def create_observation():
         if not docente:
             return jsonify({'success': False, 'error': 'Docente no encontrado'}), 404
         
-        # Convertir IDs (frontend envia group_id como course_id)
+        # Validar campos requeridos
+        required_fields = ['student_id', 'group_id', 'course_id', 'tipo', 'descripcion']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    'success': False,
+                    'error': f'El campo {field} es requerido'
+                }), 400
+        
+        # Convertir IDs
         estudiante_id = string_to_objectid(data['student_id'])
-        grupo_id = string_to_objectid(data['course_id'])
+        grupo_id = string_to_objectid(data['group_id'])
+        curso_id = string_to_objectid(data['course_id'])
 
-        if not estudiante_id or not grupo_id:
+        if not estudiante_id or not grupo_id or not curso_id:
             return jsonify({'success': False, 'error': 'IDs inválidos'}), 400
 
         # Verificar que el estudiante existe
@@ -2153,36 +2631,46 @@ def create_observation():
         if not estudiante:
             return jsonify({'success': False, 'error': 'Estudiante no encontrado'}), 404
 
-        # Resolver curso desde la asignación del docente para este grupo
-        from database.db_config import get_asignaciones_collection
+        # Verificar acceso al grupo
+        grupos = get_groups_collection()
+        grupo = grupos.find_one({'_id': grupo_id})
+        if not grupo:
+            return jsonify({'success': False, 'error': 'Grupo no encontrado'}), 404
+
+        # Verificar si es director de grupo
+        is_homeroom = False
+        director_id = grupo.get('director_grupo')
+        if director_id and director_id == docente['_id']:
+            is_homeroom = True
+
+        # Verificar que el curso existe en este grupo
         asignaciones = get_asignaciones_collection()
         asignacion = asignaciones.find_one({
             'id_grupo': grupo_id,
-            'id_docente': docente['_id'],
+            'id_curso': curso_id,
             'activo': True
         })
-
         if not asignacion:
-            return jsonify({'success': False, 'error': 'No tienes asignación para este grupo'}), 403
+            return jsonify({'success': False, 'error': 'Curso no encontrado en este grupo'}), 404
 
-        curso_id = asignacion['id_curso']
         cursos = get_cursos_collection()
         curso = cursos.find_one({'_id': curso_id})
-
         if not curso:
             return jsonify({'success': False, 'error': 'Curso no encontrado'}), 404
 
-        # Permisos por asignacion docente (modelo actual)
-        tiene_asignacion = asignaciones.find_one({
-            'id_curso': curso_id,
-            'id_docente': docente['_id'],
-            'activo': True
-        })
-        if not tiene_asignacion:
-            return jsonify({
-                'success': False,
-                'error': 'No tienes permiso para registrar observaciones en este curso'
-            }), 403
+        # Verificar permisos: director de grupo puede crear, o debe ser su asignación
+        if not is_homeroom:
+            asignacion_docente = asignaciones.find_one({
+                'id_grupo': grupo_id,
+                'id_curso': curso_id,
+                'id_docente': docente['_id'],
+                'activo': True
+            })
+            if not asignacion_docente:
+                return jsonify({
+                    'success': False,
+                    'error': 'Solo puede crear observaciones en las materias que imparte'
+                }), 403
         
         # Validar tipo
         tipo = data['tipo'].lower()
@@ -2465,6 +2953,46 @@ def get_student_observations(student_id):
         return jsonify({'success': False, 'error': str(e)}), 500
     
 # Manejo de errores
+@app.route('/teacher/periodo-activo', methods=['GET'])
+@token_required('docente')
+def get_periodo_activo_teacher():
+    """Obtener el periodo activo actual para el docente"""
+    try:
+        from database.db_config import get_periodos_collection
+        periodos = get_periodos_collection()
+        
+        periodo_activo = periodos.find_one({'activo': True})
+        
+        if not periodo_activo:
+            return jsonify({
+                'success': False,
+                'error': 'No hay periodo activo configurado'
+            }), 404
+        
+        # Verificar si la fecha actual esta dentro del periodo de calificaciones
+        ahora = datetime.utcnow()
+        fecha_limite = periodo_activo.get('fecha_limite_calificaciones')
+        
+        puede_calificar = True
+        if fecha_limite:
+            if isinstance(fecha_limite, str):
+                fecha_limite = datetime.fromisoformat(fecha_limite.replace('Z', '+00:00'))
+            if ahora > fecha_limite:
+                puede_calificar = False
+        
+        return jsonify({
+            'success': True,
+            'periodo': serialize_doc(periodo_activo),
+            'puede_calificar': puede_calificar,
+            'fecha_actual': ahora.isoformat()
+        }), 200
+        
+    except Exception as e:
+        print(f"Error en get_periodo_activo_teacher: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({'success': False, 'error': 'Endpoint no encontrado'}), 404

@@ -603,3 +603,130 @@
     font-size: 28px;
   }
 }
+
+/* Resumen Anual */
+.resumen-anual {
+  margin-top: 24px;
+  animation: fadeInUp 0.5s var(--ease-out) both;
+}
+
+.resumen-anual .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.resumen-anual .status {
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+.resumen-anual .status.aprobado {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.resumen-anual .status.reprobado {
+  background: var(--error-bg);
+  color: var(--error);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat {
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text);
+  font-family: var(--font-display);
+}
+
+.stat-value.reprobadas {
+  color: var(--error);
+}
+
+.materias-table {
+  overflow-x: auto;
+}
+
+.materias-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.materias-table th {
+  text-align: left;
+  padding: 12px 16px;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.materias-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+
+.materias-table tr.reprobada td {
+  color: var(--error);
+  background: var(--error-bg);
+}
+
+.badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.badge.aprobado {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.badge.reprobado {
+  background: var(--error-bg);
+  color: var(--error);
+}
+
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .materias-table {
+    font-size: 12px;
+  }
+  .materias-table th,
+  .materias-table td {
+    padding: 8px 10px;
+  }
+}

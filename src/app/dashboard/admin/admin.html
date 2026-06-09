@@ -42,6 +42,10 @@
       <span class="material-icons">assessment</span>
       Reportes
     </button>
+    <button (click)="changeView('periodos')" [class.active]="activeView === 'periodos'">
+      <span class="material-icons">date_range</span>
+      Periodos
+    </button>
   </nav>
 
   <!-- Loading State -->
@@ -483,6 +487,143 @@
         <span class="material-icons">insights</span>
         <h3>Selecciona un Reporte</h3>
         <p>Haz clic en una de las tarjetas para generar el reporte</p>
+      </div>
+    </div>
+
+    <!-- PERIODOS VIEW -->
+    <div *ngIf="activeView === 'periodos'" class="periodos-view">
+      <div class="view-header">
+        <h2><span class="material-icons">date_range</span> Gestión de Periodos Académicos</h2>
+        <button class="btn-primary" (click)="showPeriodoForm = true" *ngIf="!showPeriodoForm">
+          <span class="material-icons">add</span> Nuevo Periodo
+        </button>
+      </div>
+
+      <!-- Formulario de creación/edición -->
+      <div class="form-card" *ngIf="showPeriodoForm">
+        <h3>{{ editingPeriodo ? 'Editar Periodo' : 'Nuevo Periodo' }}</h3>
+        
+        <div class="form-grid">
+          <div class="form-field">
+            <label>Nombre del Periodo</label>
+            <input type="text" [(ngModel)]="periodoForm.nombre" placeholder="Ej. Primer Periodo 2025" />
+          </div>
+          
+          <div class="form-field">
+            <label>Número de Periodo</label>
+            <select [(ngModel)]="periodoForm.periodo">
+              <option value="1">Periodo 1</option>
+              <option value="2">Periodo 2</option>
+              <option value="3">Periodo 3</option>
+              <option value="4">Periodo 4</option>
+            </select>
+          </div>
+          
+          <div class="form-field">
+            <label>Año Lectivo</label>
+            <input type="text" [(ngModel)]="periodoForm.anio_lectivo" [value]="currentYear" />
+          </div>
+          
+          <div class="form-field">
+            <label>Fecha Inicio</label>
+            <input type="date" [(ngModel)]="periodoForm.fecha_inicio" />
+          </div>
+          
+          <div class="form-field">
+            <label>Fecha Fin</label>
+            <input type="date" [(ngModel)]="periodoForm.fecha_fin" />
+          </div>
+          
+          <div class="form-field">
+            <label>Fecha Límite Calificaciones</label>
+            <input type="date" [(ngModel)]="periodoForm.fecha_limite_calificaciones" />
+            <small>Fecha hasta la que los profesores pueden registrar notas</small>
+          </div>
+          
+          <div class="form-field">
+            <label>Nota Mínima Aprobación</label>
+            <input type="number" [(ngModel)]="periodoForm.nota_minima_aprobacion" step="0.1" min="1" max="5" />
+          </div>
+          
+          <div class="form-field">
+            <label>Límite Materias Reprobadas</label>
+            <input type="number" [(ngModel)]="periodoForm.limite_materias_reprobadas" min="1" max="10" />
+            <small>Cantidad de materias reprobadas para perder el año</small>
+          </div>
+        </div>
+        
+        <div class="form-actions">
+          <button class="btn-outline" (click)="cancelPeriodoForm()">Cancelar</button>
+          <button class="btn-primary" (click)="savePeriodo()" [disabled]="savingPeriodo">
+            <span *ngIf="!savingPeriodo">Guardar Periodo</span>
+            <span *ngIf="savingPeriodo">Guardando...</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Lista de periodos -->
+      <div class="periodos-list" *ngIf="!showPeriodoForm">
+        <div class="loading-container" *ngIf="loadingPeriodos">
+          <div class="spinner"></div>
+          <p>Cargando periodos...</p>
+        </div>
+
+        <table class="data-table" *ngIf="!loadingPeriodos && periodos.length > 0">
+          <thead>
+            <tr>
+              <th>Periodo</th>
+              <th>Fechas</th>
+              <th>Límite Calificaciones</th>
+              <th>Nota Mínima</th>
+              <th>Límite Reprobadas</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let p of periodos; trackBy: trackByPeriodo" [class.active-row]="p.activo">
+              <td>
+                <strong>{{ p.nombre }}</strong>
+                <br>
+                <small>Periodo {{ p.periodo }} - {{ p.anio_lectivo }}</small>
+              </td>
+              <td>
+                {{ formatDate(p.fecha_inicio) }} - {{ formatDate(p.fecha_fin) }}
+              </td>
+              <td>
+                {{ formatDate(p.fecha_limite_calificaciones) }}
+              </td>
+              <td>
+                {{ p.nota_minima_aprobacion }}
+              </td>
+              <td>
+                {{ p.limite_materias_reprobadas }}
+              </td>
+              <td>
+                <span class="badge" [class.badge-success]="p.activo" [class.badge-inactive]="!p.activo">
+                  {{ p.activo ? 'Activo' : 'Inactivo' }}
+                </span>
+              </td>
+              <td class="actions">
+                <button class="btn-icon" *ngIf="!p.activo" (click)="activarPeriodo(p._id)" title="Activar">
+                  <span class="material-icons">play_arrow</span>
+                </button>
+                <button class="btn-icon" (click)="editarPeriodo(p)" title="Editar">
+                  <span class="material-icons">edit</span>
+                </button>
+                <button class="btn-icon danger" *ngIf="!p.activo" (click)="eliminarPeriodo(p._id)" title="Eliminar">
+                  <span class="material-icons">delete</span>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="empty-state" *ngIf="!loadingPeriodos && periodos.length === 0">
+          <span class="material-icons">event_busy</span>
+          <h3>No hay periodos configurados</h3>
+          <p>Crea el primer periodo académico para el año lectivo</p>
+        </div>
       </div>
     </div>
 

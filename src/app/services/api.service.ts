@@ -89,12 +89,19 @@ export class ApiService {
     return this.http.get(`${environment.api.teachers}/teacher/observations`, { params });
   }
 
-  // ===== CALIFICACIONES (PROFESOR) =====
-  getCourseGrades(courseId: string): Observable<any> {
-    console.log('📡 API: Obteniendo calificaciones del curso/grupo:', courseId);
+  // ===== ASIGNACIONES (PROFESOR) =====
+  getTeacherGroupAssignments(groupId: string): Observable<any> {
+    return this.http.get(`${environment.api.teachers}/teacher/groups/${groupId}/assignments`);
+  }
 
-    // ✅ CAMBIO: Usar endpoint de grupos en lugar de cursos
-    return this.http.get(`${environment.api.teachers}/teacher/groups/${courseId}/grades`);
+  // ===== CALIFICACIONES (PROFESOR) =====
+  getCourseGrades(groupId: string, courseId?: string): Observable<any> {
+    console.log('📡 API: Obteniendo calificaciones del grupo:', groupId, 'materia:', courseId);
+    const params: any = {};
+    if (courseId) {
+      params.course_id = courseId;
+    }
+    return this.http.get(`${environment.api.teachers}/teacher/groups/${groupId}/grades`, { params });
   }
   saveGrades(data: any): Observable<any> {
     console.log('📡 API: Guardando calificaciones:', data);
@@ -147,19 +154,65 @@ export class ApiService {
     });
   }
 
+  closePeriod(groupId: string, periodo: string): Observable<any> {
+    return this.http.post(`${environment.api.teachers}/teacher/groups/${groupId}/close-period`, { periodo });
+  }
+
+  reopenPeriod(groupId: string, periodo: string): Observable<any> {
+    return this.http.post(`${environment.api.teachers}/teacher/groups/${groupId}/reopen-period`, { periodo });
+  }
+
+  getPeriodoActivo(): Observable<any> {
+    return this.http.get(`${environment.api.teachers}/teacher/periodo-activo`);
+  }
+
+  // ===== PERIODOS (ADMIN) =====
+  getAdminPeriodos(anioLectivo?: string): Observable<any> {
+    const params: any = {};
+    if (anioLectivo) {
+      params.anio_lectivo = anioLectivo;
+    }
+    return this.http.get(`${environment.api.admin}/admin/periodos`, { params });
+  }
+
+  getAdminPeriodoActivo(): Observable<any> {
+    return this.http.get(`${environment.api.admin}/admin/periodos/activo`);
+  }
+
+  createPeriodo(data: any): Observable<any> {
+    return this.http.post(`${environment.api.admin}/admin/periodos`, data);
+  }
+
+  updatePeriodo(id: string, data: any): Observable<any> {
+    return this.http.put(`${environment.api.admin}/admin/periodos/${id}`, data);
+  }
+
+  activarPeriodo(id: string): Observable<any> {
+    return this.http.put(`${environment.api.admin}/admin/periodos/${id}/activar`, {});
+  }
+
+  deletePeriodo(id: string): Observable<any> {
+    return this.http.delete(`${environment.api.admin}/admin/periodos/${id}`);
+  }
+
   // ===== ASISTENCIA =====
-  getAttendance(courseId: string, fecha: string): Observable<any> {
-    return this.http.get(`${environment.api.teachers}/teacher/attendance`, {
-      params: { course_id: courseId, fecha: fecha }
-    });
+  getAttendance(groupId: string, fecha: string, courseId?: string): Observable<any> {
+    const params: any = { group_id: groupId, fecha: fecha };
+    if (courseId) {
+      params.course_id = courseId;
+    }
+    return this.http.get(`${environment.api.teachers}/teacher/attendance`, { params });
   }
 
   saveAttendance(data: any): Observable<any> {
     return this.http.post(`${environment.api.teachers}/teacher/attendance`, data);
   }
 
-  getAttendanceStatistics(courseId: string, periodo?: string): Observable<any> {
-    const params: any = { course_id: courseId };
+  getAttendanceStatistics(groupId: string, courseId?: string, periodo?: string): Observable<any> {
+    const params: any = { group_id: groupId };
+    if (courseId) {
+      params.course_id = courseId;
+    }
     if (periodo) {
       params.periodo = periodo;
     }
@@ -280,6 +333,10 @@ export class ApiService {
 
   getStudentCourses(): Observable<any> {
     return this.http.get(`${environment.api.students}/student/courses`);
+  }
+
+  getStudentResumenAnual(): Observable<any> {
+    return this.http.get(`${environment.api.students}/student/resumen-anual`);
   }
 
   // ==========================================

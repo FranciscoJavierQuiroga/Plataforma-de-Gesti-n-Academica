@@ -1240,7 +1240,149 @@ def generar_boletin_estudiante():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# ...existing code...
+@app.route('/student/resumen-anual', methods=['GET'])
+@token_required('estudiante')
+def get_resumen_anual():
+    """Obtener resumen anual del estudiante con promedios por materia y estado del año"""
+    try:
+        # Obtener email del estudiante del token
+        student_email = g.userinfo.get('email') or g.userinfo.get('preferred_username')
+        
+        if not student_email:
+            return jsonify({'success': False, 'error': 'Email no encontrado en el token'}), 400
+        
+        usuarios = get_usuarios_collection()
+        matriculas = get_matriculas_collection()
+        
+        # Buscar estudiante
+        estudiante = usuarios.find_one({
+            'correo': student_email,
+            'rol': 'estudiante',
+            'activo': True
+        })
+        
+        if not estudiante:
+            return jsonify({'success': False, 'error': 'Estudiante no encontrado'}), 404
+        
+        # Obtener matrícula activa
+        matricula = matriculas.find_one({
+            'id_estudiante': estudiante['_id'],
+            'estado': 'activa'
+        })
+        
+        if not matricula:
+            return jsonify({'success': False, 'error': 'No se encontró matrícula activa'}), 404
+        
+        # Obtener configuración del periodo
+        from database.db_config import get_periodos_collection
+        periodos = get_periodos_collection()
+        config = periodos.find_one({'activo': True}) or {}
+        
+        nota_minima = config.get('nota_minima_aprobacion', 3.0)
+        limite_reprobadas = config.get('limite_materias_reprobadas', 3)
+        
+        # Procesar calificaciones
+        calificaciones = matricula.get('calificaciones', [])
+        
+        # Agrupar por asignación (materia)
+        materias_resumen = {}
+        for cal in calificaciones:
+            asignacion_id = str(cal.get('id_asignacion'))
+            periodo_cal = cal.get('periodo', '1')
+            notas = cal.get('notas', [])
+            
+            if asignacion_id not in materias_resumen:
+                materias_resumen[asignacion_id] = {
+                    'periodos': {}
+                }
+            
+            # Calcular promedio del periodo
+            if notas:
+                total = sum(n.get('nota', 0) * n.get('peso', 0) for n in notas)
+                total_peso = sum(n.get('peso', 0) for n in notas)
+                promedio_periodo = round(total / total_peso, 2) if total_peso > 0 else 0
+            else:
+                promedio_periodo = 0
+            
+            materias_resumen[asignacion_id]['periodos'][periodo_cal] = {
+                'notas': [n.get('nota', 0) for n in notas],
+                'promedio': promedio_periodo,
+                'cantidad_notas': len(notas)
+            }
+        
+        # Calcular promedio anual por materia
+        resumen_materias = []
+        reprobadas = 0
+        
+        for asignacion_id, datos in materias_resumen.items():
+            periodos_cal = datos['periodos']
+            
+            # Calcular promedio anual (simple)
+            promedios_periodo = [p['promedio'] for p in periodos_cal.values() if p['promedio'] > 0]
+            
+            if promedios_periodo:
+                promedio_anual = round(sum(promedios_periodo) / len(promedios_periodo), 2)
+            else:
+                promedio_anual = 0
+            
+            # Determinar estado
+            estado = 'Aprobada' if promedio_anual >= nota_minima else 'Reprobada'
+            if promedio_anual < nota_minima:
+                reprobadas += 1
+            
+            resumen_materias.append({
+                'asignacion_id': asignacion_id,
+                'promedio_periodo_1': periodos_cal.get('1', {}).get('promedio', 0),
+                'promedio_periodo_2': periodos_cal.get('2', {}).get('promedio', 0),
+                'promedio_periodo_3': periodos_cal.get('3', {}).get('promedio', 0),
+                'promedio_periodo_4': periodos_cal.get('4', {}).get('promedio', 0),
+                'promedio_anual': promedio_anual,
+                'estado': estado,
+                'notas_registradas': sum(p['cantidad_notas'] for p in periodos_cal.values())
+            })
+        
+        # Determinar estado del año
+        if reprobadas >= limite_reprobadas:
+            estado_anual = 'Pierde el año'
+            estado_color = 'danger'
+        elif reprobadas > 0:
+            estado_anual = 'En riesgo'
+            estado_color = 'warning'
+        else:
+            estado_anual = 'Pasa el año'
+            estado_color = 'success'
+        
+        # Calcular promedio general
+        if resumen_materias:
+            promedio_general = round(sum(m['promedio_anual'] for m in resumen_materias) / len(resumen_materias), 2)
+        else:
+            promedio_general = 0
+        
+        return jsonify({
+            'success': True,
+            'estudiante': {
+                'nombre': f"{estudiante.get('nombres', '')} {estudiante.get('apellidos', '')}",
+                'codigo': estudiante.get('codigo_est', '')
+            },
+            'anio_lectivo': matricula.get('anio_lectivo', '2025'),
+            'materias': resumen_materias,
+            'resumen': {
+                'total_materias': len(resumen_materias),
+                'materias_aprobadas': len(resumen_materias) - reprobadas,
+                'materias_reprobadas': reprobadas,
+                'limite_materias_reprobadas': limite_reprobadas,
+                'promedio_general': promedio_general,
+                'nota_minima_aprobacion': nota_minima,
+                'estado_anual': estado_anual,
+                'estado_color': estado_color
+            }
+        }), 200
+        
+    except Exception as e:
+        print(f"Error en get_resumen_anual: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 if __name__ == '__main__':

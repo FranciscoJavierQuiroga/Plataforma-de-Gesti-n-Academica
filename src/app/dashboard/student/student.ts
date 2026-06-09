@@ -20,6 +20,10 @@ export default class StudentComponent implements OnInit {
   loading = false;
   error: string | null = null;
 
+  // Resumen Anual
+  resumenAnual: any = null;
+  loadingResumen = false;
+
   constructor(
     private api: ApiService,
     private router: Router,
@@ -100,6 +104,26 @@ export default class StudentComponent implements OnInit {
         this.loading = false;
       }
     });
+
+    // Cargar resumen anual
+    this.loadResumenAnual();
+  }
+
+  loadResumenAnual() {
+    this.loadingResumen = true;
+    this.api.getStudentResumenAnual().subscribe({
+      next: (res: any) => {
+        if (res.success) {
+          console.log('✅ Resumen anual cargado:', res);
+          this.resumenAnual = res;
+        }
+        this.loadingResumen = false;
+      },
+      error: (err: any) => {
+        console.error('❌ Error cargando resumen anual:', err);
+        this.loadingResumen = false;
+      }
+    });
   }
 
   getStudentName(): string {
@@ -136,6 +160,10 @@ export default class StudentComponent implements OnInit {
         this.router.navigate(['/login']);
       }, 1000);
     }
+  }
+
+  trackByMateria(index: number, materia: any): string {
+    return materia.materia || index;
   }
 
   trackByCourse(index: number, course: any): string {

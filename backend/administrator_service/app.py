@@ -1972,5 +1972,255 @@ def get_admin_stats():
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
     
+@app.route('/admin/periodos', methods=['GET'])
+@token_required('administrador')
+def get_periodos():
+    """Obtener todos los periodos academicos"""
+    try:
+        from database.db_config import get_periodos_collection
+        periodos = get_periodos_collection()
+        
+        anio_lectivo = request.args.get('anio_lectivo', str(datetime.now().year))
+        
+        lista = list(periodos.find({'anio_lectivo': anio_lectivo}).sort('periodo', 1))
+        
+        return jsonify({
+            'success': True,
+            'periodos': serialize_doc(lista),
+            'count': len(lista)
+        }), 200
+        
+    except Exception as e:
+        print(f"Error en get_periodos: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin/periodos/activo', methods=['GET'])
+@token_required('administrador')
+def get_periodo_activo():
+    """Obtener el periodo activo actual"""
+    try:
+        from database.db_config import get_periodos_collection
+        periodos = get_periodos_collection()
+        
+        periodo_activo = periodos.find_one({'activo': True})
+        
+        if not periodo_activo:
+            return jsonify({
+                'success': False,
+                'error': 'No hay periodo activo configurado'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'periodo': serialize_doc(periodo_activo)
+        }), 200
+        
+    except Exception as e:
+        print(f"Error en get_periodo_activo: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin/periodos', methods=['POST'])
+@token_required('administrador')
+def crear_periodo():
+    """Crear un nuevo periodo academico"""
+    try:
+        from database.db_config import get_periodos_collection
+        periodos = get_periodos_collection()
+        
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'Datos requeridos'}), 400
+        
+        required = ['nombre', 'periodo', 'anio_lectivo', 'fecha_inicio', 'fecha_fin']
+        for field in required:
+            if field not in data:
+                return jsonify({'success': False, 'error': f'Campo {field} requerido'}), 400
+        
+        # Verificar si ya existe
+        existente = periodos.find_one({
+            'periodo': str(data['periodo']),
+            'anio_lectivo': str(data['anio_lectivo'])
+        })
+        
+        if existente:
+            return jsonify({'success': False, 'error': 'Ya existe un periodo con ese numero y anio lectivo'}), 409
+        
+        nuevo_periodo = {
+            'nombre': data['nombre'],
+            'periodo': str(data['periodo']),
+            'anio_lectivo': str(data['anio_lectivo']),
+            'fecha_inicio': data['fecha_inicio'],
+            'fecha_fin': data['fecha_fin'],
+            'fecha_limite_calificaciones': data.get('fecha_limite_calificaciones', data['fecha_fin']),
+            'activo': False,
+            'nota_minima_aprobacion': float(data.get('nota_minima_aprobacion', 3.0)),
+            'limite_materias_reprobadas': int(data.get('limite_materias_reprobadas', 3)),
+            'creado_en': datetime.utcnow()
+        }
+        
+        resultado = periodos.insert_one(nuevo_periodo)
+        
+        registrar_auditoria(
+            id_usuario=g.userinfo.get('sub'),
+            accion='crear_periodo',
+            entidad_afectada='periodos',
+            id_entidad=str(resultado.inserted_id),
+            detalles=f"Periodo {nuevo_periodo['nombre']} creado"
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Periodo creado exitosamente',
+            'periodo': serialize_doc(nuevo_periodo)
+        }), 201
+        
+    except Exception as e:
+        print(f"Error en crear_periodo: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin/periodos/<id>', methods=['PUT'])
+@token_required('administrador')
+def actualizar_periodo(id):
+    """Actualizar un periodo academico"""
+    try:
+        from database.db_config import get_periodos_collection
+        periodos = get_periodos_collection()
+        
+        obj_id = string_to_objectid(id)
+        if not obj_id:
+            return jsonify({'success': False, 'error': 'ID invalido'}), 400
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'Datos requeridos'}), 400
+        
+        update_fields = {}
+        campos_permitidos = ['nombre', 'fecha_inicio', 'fecha_fin', 'fecha_limite_calificaciones', 
+                             'nota_minima_aprobacion', 'limite_materias_reprobadas']
+        
+        for campo in campos_permitidos:
+            if campo in data:
+                if campo in ['nota_minima_aprobacion']:
+                    update_fields[campo] = float(data[campo])
+                elif campo in ['limite_materias_reprobadas']:
+                    update_fields[campo] = int(data[campo])
+                else:
+                    update_fields[campo] = data[campo]
+        
+        if update_fields:
+            periodos.update_one(
+                {'_id': obj_id},
+                {'$set': update_fields}
+            )
+            
+            registrar_auditoria(
+                id_usuario=g.userinfo.get('sub'),
+                accion='actualizar_periodo',
+                entidad_afectada='periodos',
+                id_entidad=id,
+                detalles=f"Periodo {id} actualizado"
+            )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Periodo actualizado exitosamente'
+        }), 200
+        
+    except Exception as e:
+        print(f"Error en actualizar_periodo: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin/periodos/<id>/activar', methods=['PUT'])
+@token_required('administrador')
+def activar_periodo(id):
+    """Activar un periodo (desactiva todos los demas)"""
+    try:
+        from database.db_config import get_periodos_collection
+        periodos = get_periodos_collection()
+        
+        obj_id = string_to_objectid(id)
+        if not obj_id:
+            return jsonify({'success': False, 'error': 'ID invalido'}), 400
+        
+        # Desactivar todos los periodos
+        periodos.update_many(
+            {},
+            {'$set': {'activo': False}}
+        )
+        
+        # Activar el seleccionado
+        periodos.update_one(
+            {'_id': obj_id},
+            {'$set': {'activo': True}}
+        )
+        
+        registrar_auditoria(
+            id_usuario=g.userinfo.get('sub'),
+            accion='activar_periodo',
+            entidad_afectada='periodos',
+            id_entidad=id,
+            detalles=f"Periodo {id} activado"
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Periodo activado exitosamente'
+        }), 200
+        
+    except Exception as e:
+        print(f"Error en activar_periodo: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin/periodos/<id>', methods=['DELETE'])
+@token_required('administrador')
+def eliminar_periodo(id):
+    """Eliminar un periodo academico"""
+    try:
+        from database.db_config import get_periodos_collection
+        periodos = get_periodos_collection()
+        
+        obj_id = string_to_objectid(id)
+        if not obj_id:
+            return jsonify({'success': False, 'error': 'ID invalido'}), 400
+        
+        periodo = periodos.find_one({'_id': obj_id})
+        if not periodo:
+            return jsonify({'success': False, 'error': 'Periodo no encontrado'}), 404
+        
+        if periodo.get('activo'):
+            return jsonify({'success': False, 'error': 'No se puede eliminar el periodo activo'}), 400
+        
+        periodos.delete_one({'_id': obj_id})
+        
+        registrar_auditoria(
+            id_usuario=g.userinfo.get('sub'),
+            accion='eliminar_periodo',
+            entidad_afectada='periodos',
+            id_entidad=id,
+            detalles=f"Periodo {periodo.get('nombre')} eliminado"
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Periodo eliminado exitosamente'
+        }), 200
+        
+    except Exception as e:
+        print(f"Error en eliminar_periodo: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5003, debug=True)

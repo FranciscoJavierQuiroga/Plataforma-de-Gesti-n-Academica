@@ -81,6 +81,69 @@
     </div>
   </div>
 
+  <!-- RESUMEN ANUAL -->
+  <section *ngIf="resumenAnual" class="resumen-anual card">
+    <div class="card-header">
+      <div>
+        <div class="title">Resumen Anual</div>
+        <div class="subtitle">Año lectivo {{ resumenAnual.anio_lectivo }}</div>
+      </div>
+      <div class="status" [class.aprobado]="resumenAnual.estado_anual === 'APROBADO'" [class.reprobado]="resumenAnual.estado_anual === 'REPROBADO'">
+        {{ resumenAnual.estado_anual }}
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat">
+        <div class="stat-label">Promedio General</div>
+        <div class="stat-value">{{ resumenAnual.promedio_general }}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Materias Reprobadas</div>
+        <div class="stat-value" [class.reprobadas]="resumenAnual.materias_reprobadas > 0">
+          {{ resumenAnual.materias_reprobadas }}
+        </div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Materias Aprobadas</div>
+        <div class="stat-value">{{ resumenAnual.materias_aprobadas }}</div>
+      </div>
+    </div>
+
+    <div class="materias-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Materia</th>
+            <th>P1</th>
+            <th>P2</th>
+            <th>P3</th>
+            <th>P4</th>
+            <th>Promedio</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let m of resumenAnual.materias; trackBy: trackByMateria" [class.reprobada]="m.promedio_anual < resumenAnual.nota_minima_aprobacion">
+            <td>{{ m.materia }}</td>
+            <td>{{ m.periodos['1'] || '—' }}</td>
+            <td>{{ m.periodos['2'] || '—' }}</td>
+            <td>{{ m.periodos['3'] || '—' }}</td>
+            <td>{{ m.periodos['4'] || '—' }}</td>
+            <td>{{ m.promedio_anual }}</td>
+            <td>
+              <span class="badge" [class.aprobado]="m.estado === 'APROBADA'" [class.reprobado]="m.estado === 'REPROBADA'">
+                {{ m.estado }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div *ngIf="loadingResumen" class="loading">Cargando resumen anual...</div>
+
   <!-- ACCIONES RÁPIDAS -->
   <div class="quick-actions">
     <a class="action" routerLink="/dashboard/student/boletines"> 
