@@ -20,6 +20,11 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from database.db_config import (
     get_usuarios_collection,
     get_matriculas_collection,
+    get_asignaciones_collection,
+    get_groups_collection,
+    get_observaciones_collection,
+    get_asistencia_collection,
+    get_periodos_collection,
     serialize_doc,
     string_to_objectid,
     registrar_auditoria
@@ -565,17 +570,20 @@ def get_student_courses():
 @app.route('/student/certificado/<tipo>', methods=['GET'])
 @token_required('estudiante')
 def download_certificado(tipo):
-    """Generar certificado en PDF"""
+    """Generar certificado en PDF según el tipo: estudio, notas, conducta, asistencia"""
     try:
-        # ✅ SOLO obtener email del token
+        # Obtener email del token
         student_email = g.userinfo.get('email') or g.userinfo.get('preferred_username')
         
         if not student_email:
             return jsonify({'success': False, 'error': 'Email no encontrado en el token'}), 400
         
         usuarios = get_usuarios_collection()
+        matriculas = get_matriculas_collection()
+        asignaciones = get_asignaciones_collection()
+        grupos = get_groups_collection()
         
-        # ✅ Buscar SOLO por email
+        # Buscar estudiante
         estudiante = usuarios.find_one({
             'correo': student_email,
             'rol': 'estudiante',
@@ -585,58 +593,316 @@ def download_certificado(tipo):
         if not estudiante:
             return jsonify({'success': False, 'error': 'Estudiante no encontrado'}), 404
         
-        # Crear PDF en memoria
+        # Obtener matrícula activa del año actual
+        from database.db_config import get_periodos_collection
+        periodos = get_periodos_collection()
+        config = periodos.find_one({'activo': True}) or {}
+        anio_lectivo = config.get('anio_lectivo', '2026')
+        
+        matricula = matriculas.find_one({
+            'id_estudiante': estudiante['_id'],
+            'estado': 'activa',
+            'anio_lectivo': anio_lectivo
+        })
+        
+        if not matricula:
+            matricula = matriculas.find_one({
+                'id_estudiante': estudiante['_id'],
+                'estado': 'activa'
+            })
+        
+        if not matricula:
+            return jsonify({'success': False, 'error': 'No se encontró matrícula activa'}), 404
+        
+        # Obtener información del grupo
+        grupo = grupos.find_one({'_id': matricula.get('id_grupo')})
+        
+        # Crear PDF
         buffer = BytesIO()
         p = canvas.Canvas(buffer, pagesize=letter)
         width, height = letter
         
-        # Encabezado
-        p.setFont("Helvetica-Bold", 24)
-        p.drawCentredString(width / 2, height - inch, "CERTIFICADO DE ESTUDIOS")
+        # Encabezado institucional
+        p.setFont("Helvetica-Bold", 14)
+        p.drawCentredString(width / 2, height - 0.5 * inch, "INSTITUCIÓN EDUCATIVA EL PÓRTICO")
+        p.setFont("Helvetica", 10)
+        p.drawCentredString(width / 2, height - 0.8 * inch, "NIT: 900.123.456-7 | Bogotá D.C.")
         
-        # Información del estudiante
-        p.setFont("Helvetica", 12)
-        y_position = height - 2 * inch
+        y = height - 1.5 * inch
         
-        p.drawString(inch, y_position, f"Nombre: {estudiante.get('nombres')} {estudiante.get('apellidos')}")
-        y_position -= 0.5 * inch
+        if tipo == 'estudio':
+            # CERTIFICADO DE ESTUDIO
+            p.setFont("Helvetica-Bold", 18)
+            p.drawCentredString(width / 2, y, "CERTIFICADO DE ESTUDIO")
+            y -= 0.5 * inch
+            
+            p.setFont("Helvetica", 11)
+            texto = f"""El suscrito Rector de la Institución Educativa El Pórtico, certifica que:
+
+{estudiante.get('nombres', '').upper()} {estudiante.get('apellidos', '').upper()}
+Documento: {estudiante.get('tipo_doc', 'CC')} {estudiante.get('documento', 'N/A')}
+Código Estudiantil: {estudiante.get('codigo_est', 'N/A')}
+
+Se encuentra matriculado(a) en el grado {grupo.get('grado', 'N/A')} - {grupo.get('nombre_grupo', 'N/A')}
+durante el año lectivo {anio_lectivo}."""
+            
+            for line in texto.split('\n'):
+                p.drawString(inch, y, line)
+                y -= 0.25 * inch
+            
+            # Calificaciones del periodo 1
+            y -= 0.3 * inch
+            p.setFont("Helvetica-Bold", 12)
+            p.drawString(inch, y, "NOTAS FINALES - PERIODO 1:")
+            y -= 0.3 * inch
+            
+            calificaciones = matricula.get('calificaciones', [])
+            for cal in calificaciones:
+                asig = asignaciones.find_one({'_id': cal.get('id_asignacion')})
+                if asig:
+                    notas = cal.get('notas', [])
+                    if notas:
+                        total = sum(n.get('nota', 0) * n.get('peso', 0) for n in notas)
+                        total_peso = sum(n.get('peso', 0) for n in notas)
+                        promedio = round(total / total_peso, 2) if total_peso > 0 else 0
+                        
+                        p.setFont("Helvetica", 10)
+                        p.drawString(inch, y, f"• {asig.get('curso_info', {}).get('nombre_curso', 'N/A')}: {promedio}")
+                        y -= 0.2 * inch
+            
+            # Promedio general
+            promedio_general = matricula.get('average', 0)
+            if promedio_general:
+                y -= 0.2 * inch
+                p.setFont("Helvetica-Bold", 11)
+                p.drawString(inch, y, f"Promedio General: {promedio_general}")
+                y -= 0.2 * inch
+            
+            # Estado del periodo
+            grupo_2026 = grupos.find_one({
+                'nombre_grupo': grupo.get('nombre_grupo'),
+                'año_lectivo': anio_lectivo
+            })
+            if grupo_2026 and '1' in grupo_2026.get('periodos_cerrados', []):
+                p.setFont("Helvetica", 10)
+                p.drawString(inch, y, "Periodo 1: CERRADO (Entregado)")
+                y -= 0.2 * inch
+            
+            y -= 0.5 * inch
+            p.setFont("Helvetica", 10)
+            p.drawString(inch, y, f"Expedido el {datetime.now().strftime('%d de %B de %Y')}")
+            
+            y -= 0.5 * inch
+            p.line(width/2 - 1.5*inch, y, width/2 + 1.5*inch, y)
+            y -= 0.2 * inch
+            p.setFont("Helvetica-Bold", 10)
+            p.drawCentredString(width/2, y, "Director de Grupo")
         
-        p.drawString(inch, y_position, f"Código: {estudiante.get('codigo_est')}")
-        y_position -= 0.5 * inch
+        elif tipo == 'notas':
+            # CERTIFICADO DE NOTAS
+            p.setFont("Helvetica-Bold", 18)
+            p.drawCentredString(width / 2, y, "CERTIFICADO DE NOTAS")
+            y -= 0.5 * inch
+            
+            p.setFont("Helvetica", 10)
+            p.drawString(inch, y, f"Estudiante: {estudiante.get('nombres', '')} {estudiante.get('apellidos', '')}")
+            y -= 0.2 * inch
+            p.drawString(inch, y, f"Código: {estudiante.get('codigo_est', 'N/A')}")
+            y -= 0.2 * inch
+            p.drawString(inch, y, f"Grupo: {grupo.get('grado', 'N/A')} - {grupo.get('nombre_grupo', 'N/A')}")
+            y -= 0.2 * inch
+            p.drawString(inch, y, f"Año Lectivo: {anio_lectivo}")
+            y -= 0.3 * inch
+            
+            p.setFont("Helvetica-Bold", 11)
+            p.drawString(inch, y, "DETALLE DE CALIFICACIONES:")
+            y -= 0.3 * inch
+            
+            calificaciones = matricula.get('calificaciones', [])
+            for cal in calificaciones:
+                asig = asignaciones.find_one({'_id': cal.get('id_asignacion')})
+                if asig:
+                    nombre_curso = asig.get('curso_info', {}).get('nombre_curso', 'N/A')
+                    notas = cal.get('notas', [])
+                    
+                    p.setFont("Helvetica-Bold", 10)
+                    p.drawString(inch, y, f"{nombre_curso}:")
+                    y -= 0.2 * inch
+                    
+                    for i, nota in enumerate(notas):
+                        p.setFont("Helvetica", 9)
+                        p.drawString(inch + 0.3 * inch, y, f"  {nota.get('tipo', 'N/A')}: {nota.get('nota', 0)} (Peso: {nota.get('peso', 0)})")
+                        y -= 0.15 * inch
+                    
+                    if notas:
+                        total = sum(n.get('nota', 0) * n.get('peso', 0) for n in notas)
+                        total_peso = sum(n.get('peso', 0) for n in notas)
+                        promedio = round(total / total_peso, 2) if total_peso > 0 else 0
+                        p.setFont("Helvetica-Bold", 9)
+                        p.drawString(inch + 0.3 * inch, y, f"  Promedio: {promedio}")
+                        y -= 0.2 * inch
+            
+            y -= 0.2 * inch
+            p.setFont("Helvetica-Bold", 11)
+            p.drawString(inch, y, f"Promedio General: {matricula.get('average', 0)}")
+            y -= 0.3 * inch
+            p.setFont("Helvetica", 10)
+            p.drawString(inch, y, f"Expedido el {datetime.now().strftime('%d de %B de %Y')}")
         
-        p.drawString(inch, y_position, f"Documento: {estudiante.get('tipo_doc')} {estudiante.get('documento')}")
-        y_position -= 0.5 * inch
+        elif tipo == 'conducta':
+            # CERTIFICADO DE CONDUCTA
+            p.setFont("Helvetica-Bold", 18)
+            p.drawCentredString(width / 2, y, "CERTIFICADO DE CONDUCTA")
+            y -= 0.5 * inch
+            
+            p.setFont("Helvetica", 10)
+            p.drawString(inch, y, f"Estudiante: {estudiante.get('nombres', '')} {estudiante.get('apellidos', '')}")
+            y -= 0.2 * inch
+            p.drawString(inch, y, f"Código: {estudiante.get('codigo_est', 'N/A')}")
+            y -= 0.2 * inch
+            p.drawString(inch, y, f"Grupo: {grupo.get('grado', 'N/A')} - {grupo.get('nombre_grupo', 'N/A')}")
+            y -= 0.3 * inch
+            
+            # Obtener observaciones del estudiante
+            observaciones = get_observaciones_collection()
+            obs_estudiante = list(observaciones.find({
+                'id_estudiante': estudiante['_id']
+            }).sort('fecha', -1))
+            
+            positivas = len([o for o in obs_estudiante if o.get('tipo') == 'positiva'])
+            negativas = len([o for o in obs_estudiante if o.get('tipo') == 'negativa'])
+            neutrales = len([o for o in obs_estudiante if o.get('tipo') == 'neutral'])
+            
+            p.setFont("Helvetica-Bold", 11)
+            p.drawString(inch, y, "RESUMEN DE CONDUCTA:")
+            y -= 0.3 * inch
+            
+            p.setFont("Helvetica", 10)
+            p.drawString(inch, y, f"Observaciones Positivas: {positivas}")
+            y -= 0.2 * inch
+            p.drawString(inch, y, f"Observaciones Negativas: {negativas}")
+            y -= 0.2 * inch
+            p.drawString(inch, y, f"Observaciones Neutrales: {neutrales}")
+            y -= 0.3 * inch
+            
+            if negativas == 0:
+                p.setFont("Helvetica", 10)
+                p.drawString(inch, y, "El estudiante se ha comportado de manera apropiada durante el año lectivo.")
+                y -= 0.2 * inch
+                p.drawString(inch, y, "No se registran observaciones disciplinarias negativas.")
+            else:
+                p.setFont("Helvetica", 10)
+                p.drawString(inch, y, f"El estudiante tiene {negativas} observaciones disciplinarias.")
+                y -= 0.2 * inch
+            
+            y -= 0.3 * inch
+            if obs_estudiante:
+                p.setFont("Helvetica-Bold", 10)
+                p.drawString(inch, y, "Últimas Observaciones:")
+                y -= 0.2 * inch
+                for obs in obs_estudiante[:5]:
+                    p.setFont("Helvetica", 9)
+                    fecha = obs.get('fecha', datetime.now()).strftime('%d/%m/%Y') if hasattr(obs.get('fecha'), 'strftime') else str(obs.get('fecha', ''))[:10]
+                    p.drawString(inch + 0.3 * inch, y, f"• [{obs.get('tipo', 'N/A').upper()}] {obs.get('descripcion', 'N/A')[:80]}... ({fecha})")
+                    y -= 0.15 * inch
+            
+            y -= 0.3 * inch
+            p.setFont("Helvetica", 10)
+            p.drawString(inch, y, f"Expedido el {datetime.now().strftime('%d de %B de %Y')}")
+            y -= 0.5 * inch
+            p.line(width/2 - 1.5*inch, y, width/2 + 1.5*inch, y)
+            y -= 0.2 * inch
+            p.setFont("Helvetica-Bold", 10)
+            p.drawCentredString(width/2, y, "Director de Grupo")
         
-        p.drawString(inch, y_position, f"Correo: {estudiante.get('correo')}")
-        y_position -= inch
+        elif tipo == 'asistencia':
+            # CERTIFICADO DE ASISTENCIA
+            p.setFont("Helvetica-Bold", 18)
+            p.drawCentredString(width / 2, y, "CERTIFICADO DE ASISTENCIA")
+            y -= 0.5 * inch
+            
+            p.setFont("Helvetica", 10)
+            p.drawString(inch, y, f"Estudiante: {estudiante.get('nombres', '')} {estudiante.get('apellidos', '')}")
+            y -= 0.2 * inch
+            p.drawString(inch, y, f"Código: {estudiante.get('codigo_est', 'N/A')}")
+            y -= 0.2 * inch
+            p.drawString(inch, y, f"Grupo: {grupo.get('grado', 'N/A')} - {grupo.get('nombre_grupo', 'N/A')}")
+            y -= 0.3 * inch
+            
+            # Obtener asistencias del estudiante
+            asistencia = get_asistencia_collection()
+            
+            # Buscar asistencias del estudiante
+            asistencias_estudiante = []
+            for registro in asistencia.find():
+                for r in registro.get('registros', []):
+                    if r.get('id_estudiante') == estudiante['_id']:
+                        asistencias_estudiante.append({
+                            'estado': r.get('estado', 'presente'),
+                            'fecha': registro.get('fecha'),
+                            'materia': registro.get('curso_info', {}).get('nombre_curso', 'N/A')
+                        })
+            
+            presentes = len([a for a in asistencias_estudiante if a['estado'] == 'presente'])
+            ausentes = len([a for a in asistencias_estudiante if a['estado'] == 'ausente'])
+            tardes = len([a for a in asistencias_estudiante if a['estado'] == 'tarde'])
+            excusas = len([a for a in asistencias_estudiante if a['estado'] == 'excusa'])
+            total = len(asistencias_estudiante)
+            
+            p.setFont("Helvetica-Bold", 11)
+            p.drawString(inch, y, "RESUMEN DE ASISTENCIA:")
+            y -= 0.3 * inch
+            
+            p.setFont("Helvetica", 10)
+            p.drawString(inch, y, f"Total de registros: {total}")
+            y -= 0.2 * inch
+            p.drawString(inch, y, f"Presentes: {presentes} ({(presentes/total*100 if total else 0):.1f}%)")
+            y -= 0.2 * inch
+            p.drawString(inch, y, f"Ausentes: {ausentes} ({(ausentes/total*100 if total else 0):.1f}%)")
+            y -= 0.2 * inch
+            p.drawString(inch, y, f"Tardes: {tardes} ({(tardes/total*100 if total else 0):.1f}%)")
+            y -= 0.2 * inch
+            p.drawString(inch, y, f"Excusas: {excusas} ({(excusas/total*100 if total else 0):.1f}%)")
+            y -= 0.3 * inch
+            
+            if total > 0:
+                porcentaje = (presentes + excusas) / total * 100
+                p.setFont("Helvetica-Bold", 11)
+                p.drawString(inch, y, f"Porcentaje de Asistencia: {porcentaje:.1f}%")
+                y -= 0.2 * inch
+                
+                if porcentaje >= 90:
+                    p.setFont("Helvetica", 10)
+                    p.drawString(inch, y, "El estudiante cumple con el mínimo de asistencia requerido.")
+                elif porcentaje >= 75:
+                    p.setFont("Helvetica", 10)
+                    p.drawString(inch, y, "El estudiante está en el límite de asistencia.")
+                else:
+                    p.setFont("Helvetica", 10)
+                    p.drawString(inch, y, "El estudiante NO cumple con el mínimo de asistencia requerido.")
+                y -= 0.2 * inch
+            
+            y -= 0.3 * inch
+            p.setFont("Helvetica", 10)
+            p.drawString(inch, y, f"Expedido el {datetime.now().strftime('%d de %B de %Y')}")
+            y -= 0.5 * inch
+            p.line(width/2 - 1.5*inch, y, width/2 + 1.5*inch, y)
+            y -= 0.2 * inch
+            p.setFont("Helvetica-Bold", 10)
+            p.drawCentredString(width/2, y, "Director de Grupo")
         
-        # Texto del certificado
-        p.setFont("Helvetica", 11)
-        texto = f"""
-        La institución educativa certifica que el/la estudiante {estudiante.get('nombres')} 
-        {estudiante.get('apellidos')}, identificado(a) con {estudiante.get('tipo_doc')} 
-        {estudiante.get('documento')}, se encuentra actualmente matriculado(a) en nuestra 
-        institución.
-        """
+        else:
+            return jsonify({'success': False, 'error': 'Tipo de certificado no válido'}), 400
         
-        for line in texto.strip().split('\n'):
-            p.drawString(inch, y_position, line.strip())
-            y_position -= 0.3 * inch
-        
-        # Fecha
-        p.drawString(inch, y_position - inch, f"Fecha de expedición: {datetime.now().strftime('%d/%m/%Y')}")
-        
-        # Finalizar PDF
         p.showPage()
         p.save()
-        
         buffer.seek(0)
         
         return send_file(
             buffer,
             mimetype='application/pdf',
             as_attachment=True,
-            download_name=f'certificado_{tipo}_{estudiante.get("codigo_est")}.pdf'
+            download_name=f'certificado_{tipo}_{estudiante.get("codigo_est")}_{datetime.now().strftime("%Y%m%d")}.pdf'
         )
         
     except Exception as e:
@@ -1150,55 +1416,6 @@ def not_found(error):
 def internal_error(error):
     return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
 
-# ...existing code...
-
-@app.route('/student/certificado/<tipo>', methods=['GET'])
-def generar_certificado_estudiante(tipo):
-    """Generar certificado para el estudiante autenticado"""
-    try:
-        auth_header = request.headers.get('Authorization', '')
-        if not auth_header:
-            return jsonify({'error': 'No autenticado'}), 401
-        
-        estudiante_id = request.args.get('student_id', '673df46bfaf2a31cb63b0bbd')
-        
-        usuarios = get_usuarios_collection()
-        estudiante = usuarios.find_one({'_id': string_to_objectid(estudiante_id)})
-        
-        if not estudiante:
-            return jsonify({'error': 'Estudiante no encontrado'}), 404
-        
-        if tipo == 'estudios':
-            data = {
-                'estudiante': {
-                    'nombre': estudiante.get('nombres', 'N/A') + ' ' + estudiante.get('apellidos', ''),
-                    'codigo': estudiante_id,
-                    'documento': estudiante.get('documento', '1234567890')
-                },
-                'institucion': {
-                    'nombre': 'Institución Educativa El Pórtico',
-                    'nit': '900.123.456-7',
-                    'direccion': 'Calle 123 #45-67, Bogotá D.C.'
-                },
-                'grado': '10° A',
-                'periodo': '2024-2025'
-            }
-            
-            pdf_buffer = PDFGenerator.generar_certificado_estudios(data)
-            
-            return send_file(
-                pdf_buffer,
-                mimetype='application/pdf',
-                as_attachment=True,
-                download_name=f'certificado_estudios_{estudiante_id}.pdf'
-            )
-        
-        else:
-            return jsonify({'error': 'Tipo de certificado no válido'}), 400
-            
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
 
 @app.route('/student/boletin', methods=['GET'])
 def generar_boletin_estudiante():
@@ -1264,19 +1481,29 @@ def get_resumen_anual():
         if not estudiante:
             return jsonify({'success': False, 'error': 'Estudiante no encontrado'}), 404
         
-        # Obtener matrícula activa
-        matricula = matriculas.find_one({
-            'id_estudiante': estudiante['_id'],
-            'estado': 'activa'
-        })
-        
-        if not matricula:
-            return jsonify({'success': False, 'error': 'No se encontró matrícula activa'}), 404
-        
         # Obtener configuración del periodo
         from database.db_config import get_periodos_collection
         periodos = get_periodos_collection()
         config = periodos.find_one({'activo': True}) or {}
+        
+        # Obtener matrícula activa del año lectivo actual (del periodo activo)
+        anio_lectivo = config.get('anio_lectivo', '2026')
+        
+        matricula = matriculas.find_one({
+            'id_estudiante': estudiante['_id'],
+            'estado': 'activa',
+            'anio_lectivo': anio_lectivo
+        })
+        
+        # Si no hay matrícula del año actual, buscar cualquier matrícula activa
+        if not matricula:
+            matricula = matriculas.find_one({
+                'id_estudiante': estudiante['_id'],
+                'estado': 'activa'
+            })
+        
+        if not matricula:
+            return jsonify({'success': False, 'error': 'No se encontró matrícula activa'}), 404
         
         nota_minima = config.get('nota_minima_aprobacion', 3.0)
         limite_reprobadas = config.get('limite_materias_reprobadas', 3)
@@ -1364,7 +1591,7 @@ def get_resumen_anual():
                 'nombre': f"{estudiante.get('nombres', '')} {estudiante.get('apellidos', '')}",
                 'codigo': estudiante.get('codigo_est', '')
             },
-            'anio_lectivo': matricula.get('anio_lectivo', '2025'),
+            'anio_lectivo': anio_lectivo,
             'materias': resumen_materias,
             'resumen': {
                 'total_materias': len(resumen_materias),
